@@ -1,13 +1,13 @@
-name: Auto Publish Videos to YouTube
+name: Auto Generate and Publish AI Shorts
 
 on:
   schedule:
-    # يعمل تلقائياً يومياً الساعة 6:00 مساءً بتوقيت مصر (15:00 بتوقيت UTC)
+    # يعمل تلقائياً يومياً الساعة 6:00 مساءً بتوقيت مصر (15:00 UTC)
     - cron: '0 15 * * *'
-  workflow_dispatch: # زر للتشغيل اليدوي والتجربة في أي وقت
+  workflow_dispatch: # للتشغيل اليدوي والتجربة فوراً
 
 jobs:
-  publish:
+  build-and-publish:
     runs-on: ubuntu-latest
 
     steps:
@@ -15,15 +15,16 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Python
-        uses: setup-python@v5
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Install Dependencies
+      - name: Install FFmpeg & Python Dependencies
         run: |
-          pip install requests
+          sudo apt-get update && sudo apt-get install -y ffmpeg
+          pip install requests moviepy==1.0.3
 
-      - name: Run Publish Script
+      - name: Run Auto Generation & Publish Script
         env:
           BUFFER_ACCESS_TOKEN: ${{ secrets.BUFFER_ACCESS_TOKEN }}
           BUFFER_PROFILE_IDS: ${{ secrets.BUFFER_PROFILE_IDS }}
