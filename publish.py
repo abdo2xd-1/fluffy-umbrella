@@ -10,6 +10,7 @@ def generate_luma_video(prompt):
     if not LUMA_API_KEY:
         raise ValueError("LUMA_API_KEY is missing or empty.")
 
+    # تجربة ترويسات Luma الرسمية
     headers = {
         "Authorization": f"Bearer {LUMA_API_KEY}",
         "accept": "application/json",
@@ -27,6 +28,16 @@ def generate_luma_video(prompt):
         json=payload,
         headers=headers
     )
+
+    # إذا رفض Bearer، تجربة إرسال المفتاح بدون Bearer
+    if res.status_code == 403:
+        print("Retrying with raw token header...")
+        headers["Authorization"] = LUMA_API_KEY
+        res = requests.post(
+            "https://api.lumalabs.ai/dream-machine/v1/generations",
+            json=payload,
+            headers=headers
+        )
 
     if res.status_code not in [200, 201]:
         raise Exception(f"Luma API Error ({res.status_code}): {res.text}")
