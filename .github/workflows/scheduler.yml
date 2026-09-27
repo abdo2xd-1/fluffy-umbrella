@@ -1,0 +1,31 @@
+name: Auto Publish Videos to YouTube
+
+on:
+  schedule:
+    # يعمل تلقائياً يومياً الساعة 6:00 مساءً بتوقيت مصر (15:00 بتوقيت UTC)
+    - cron: '0 15 * * *'
+  workflow_dispatch: # زر للتشغيل اليدوي والتجربة في أي وقت
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: |
+          pip install requests
+
+      - name: Run Publish Script
+        env:
+          BUFFER_ACCESS_TOKEN: ${{ secrets.BUFFER_ACCESS_TOKEN }}
+          BUFFER_PROFILE_IDS: ${{ secrets.BUFFER_PROFILE_IDS }}
+        run: |
+          python publish.py
