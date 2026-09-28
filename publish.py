@@ -3,6 +3,11 @@ import time
 import random
 import urllib.parse
 import requests
+import PIL.Image
+
+# حل مشكلة توافق Pillow الحديثة مع MoviePy القديمة
+if not hasattr(PIL.Image, 'ANTIALIAS'):
+    PIL.Image.ANTIALIAS = PIL.Image.Resampling.LANCZOS
 
 try:
     from moviepy.editor import ImageClip, concatenate_videoclips
@@ -14,7 +19,6 @@ PROFILE_IDS = [pid.strip() for pid in os.getenv("BUFFER_PROFILE_IDS", "").split(
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "").strip()
 GITHUB_REPO = os.getenv("GITHUB_REPOSITORY", "").strip()
 
-# مكتبة قصص وسيناريوهات عشوائية لتنويع المحتوى يومياً
 STORIES = [
     {
         "title": "Abandoned Kitten Gets a Second Chance 🥺❤️ #shorts",
@@ -31,7 +35,7 @@ STORIES = [
         "caption": "He thought nobody was coming back for him 😭 Watch his reaction at the end! #dog #puppy #rescue #sadstory #emotional #shorts #viral",
         "scenes": [
             "cinematic detailed portrait of a tiny dirty golden retriever puppy shivering alone on an empty dark sidewalk, teary glassy big sad eyes",
-            "cinematic cinematic street shot, muddy little puppy curled up by a closed storefront door in cold heavy rain, shivering helplessly",
+            "cinematic street shot, muddy little puppy curled up by a closed storefront door in cold heavy rain, shivering helplessly",
             "cinematic emotional shot, a caring person wrapping the wet crying puppy inside a warm soft jacket, safe and loved",
             "cinematic bright warm home, healthy smiling fluffy puppy eating a bowl of warm food, wagging tail, cinematic soft sunlight"
         ]
@@ -62,7 +66,6 @@ def create_video(scenes):
         print(f"Generating scene {i+1} with Flux high-fidelity model...")
         download_image(prompt, img_name)
         
-        # إنشاء مشهد مع زوم تدريجي ديناميكي (Ken Burns Effect)
         clip = ImageClip(img_name)
         clip = clip.with_duration(3.5) if hasattr(clip, "with_duration") else clip.set_duration(3.5)
         clip = clip.resize(lambda t: 1 + 0.03 * t)
