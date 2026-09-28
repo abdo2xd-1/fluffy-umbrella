@@ -20,7 +20,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          pip install requests
+          pip install requests lumaai
 
       - name: Run Auto Generation & Publish Script
         env:
