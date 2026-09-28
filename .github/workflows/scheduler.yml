@@ -1,4 +1,4 @@
-name: Auto Generate and Publish Luma AI Shorts
+name: Auto Generate and Publish AI Shorts
 
 on:
   workflow_dispatch:
@@ -20,11 +20,11 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          pip install requests lumaai
+          pip install requests fal-client
 
       - name: Run Auto Generation & Publish Script
         env:
-          LUMA_API_KEY: ${{ secrets.LUMA_API_KEY }}
+          FAL_KEY: ${{ secrets.FAL_KEY }}
           BUFFER_ACCESS_TOKEN: ${{ secrets.BUFFER_ACCESS_TOKEN }}
           BUFFER_PROFILE_IDS: ${{ secrets.BUFFER_PROFILE_IDS }}
         run: |
