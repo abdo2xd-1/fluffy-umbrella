@@ -5,7 +5,6 @@ import urllib.parse
 import requests
 import PIL.Image
 
-# توافق مع Pillow و MoviePy
 if not hasattr(PIL.Image, 'ANTIALIAS'):
     PIL.Image.ANTIALIAS = PIL.Image.Resampling.LANCZOS
 
@@ -21,76 +20,66 @@ GITHUB_REPO = os.getenv("GITHUB_REPOSITORY", "").strip()
 
 STORIES = [
     {
-        "title": "Abandoned Kitten Gets a Second Chance 🥺❤️ #shorts",
-        "caption": "A poor shivering kitten abandoned in the freezing rain gets saved 🥺❤️ Wait till the end! #cat #kitten #sadstory #shorts #viral #rescue",
+        "title": "I rescued a little bear cub that was attacked by wolves 🐺🐻 #shorts",
+        "caption": "While driving through the forest, I saw a tiny cub in danger... Now he feels safe with me ❤️ #animalrescue #wildlife #bear #heartwarming #shorts #viral",
         "scenes": [
-            "cinematic close-up portrait of a tiny cute wet ginger kitten with huge glassy crying reflective eyes shivering under heavy raindrops, dark moody alley at night, street lamp reflections",
-            "cinematic low angle, helpless shivering kitten sitting soaked in a rain puddle looking directly at the camera, extreme emotional facial expression, hyper-detailed whiskers and wet fur",
-            "cinematic warm lighting, gentle hands softly lifting the freezing little wet kitten from the wet pavement, raindrops falling around, hope and warmth",
-            "cinematic indoor cozy scene, clean fluffy dry ginger kitten happily sleeping wrapped in a thick wool blanket, peaceful face, warm ambient fire light"
+            "POV real iPhone camera shot, first-person view, human hand reaching out to touch a tiny shivering bear cub hiding in the forest grass, hyperrealistic natural lighting, amateur video frame",
+            "POV mobile camera footage, a cute fluffy bear cub sitting inside the passenger seat of a car, human hand gently stroking its head, warm natural sunlight, genuine candid shot",
+            "first-person perspective phone recording, little bear cub happily drinking milk from a bowl on the living room floor, close-up, authentic home video",
+            "POV smartphone video frame, human hand petting a playful healthy bear cub lying on a cozy carpet next to a fireplace, extreme realistic fur texture, cozy mood"
         ]
     },
     {
-        "title": "Little Lost Golden Puppy Left Behind in the Cold 💔🐾 #shorts",
-        "caption": "He thought nobody was coming back for him 😭 Watch his reaction at the end! #dog #puppy #rescue #sadstory #emotional #shorts #viral",
+        "title": "I found a tiny freezing kangaroo joey left behind 🦘❤️ #shorts",
+        "caption": "He was so small and scared. Look at him now! 🥹❤️ #animalrescue #kangaroo #wildlife #wholesome #shorts #viral",
         "scenes": [
-            "cinematic detailed portrait of a tiny dirty golden retriever puppy shivering alone on an empty dark sidewalk, teary glassy big sad eyes",
-            "cinematic street shot, muddy little puppy curled up by a closed storefront door in cold heavy rain, shivering helplessly",
-            "cinematic emotional shot, a caring person wrapping the wet crying puppy inside a warm soft jacket, safe and loved",
-            "cinematic bright warm home, healthy smiling fluffy puppy eating a bowl of warm food, wagging tail, cinematic soft sunlight"
+            "POV iPhone camera shot, two human hands gently holding a very tiny adorable baby kangaroo joey outdoors, looking directly into the camera lens, real smartphone video quality",
+            "first-person view amateur mobile recording, baby kangaroo wrapped inside a warm green towel pouch, big glassy curious eyes, natural soft outdoor lighting",
+            "POV smartphone frame, feeding a tiny kangaroo joey with a small milk bottle, human fingers holding the bottle, authentic documentary style",
+            "POV phone camera footage, healthy smiling baby kangaroo hopping towards the camera indoors, cozy living room background, heartwarming"
         ]
     }
 ]
 
 def download_image(prompt, filename):
-    prompt_details = (
-        f"{prompt}, ultra-realistic photography, 8k resolution, cinematic lighting, "
-        "highly detailed fur, octane render, photorealistic, sharp focus, masterpiece"
+    full_prompt = (
+        f"{prompt}, 8k, raw color photo, authentic mobile footage, "
+        "shot on iPhone 15 Pro, unedited, hyperrealistic texture, cinematic realism"
     )
-    encoded_prompt = urllib.parse.quote(prompt_details)
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+    encoded = urllib.parse.quote(full_prompt)
+    seed = random.randint(1000, 999999)
+    # استخدام موديل flux عالي الدقة بدون علامات مائية
+    url = f"https://image.pollinations.ai/prompt/{encoded}?width=720&height=1280&model=flux&nologo=true&seed={seed}"
     
-    # محاولة التوليد بأبعاد 720x1280 المستقرة مع إعادة المحاولة
-    models_to_try = ["flux", "turbo", "default"]
-    for model in models_to_try:
-        seed = random.randint(1000, 999999)
-        url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=720&height=1280&model={model}&nologo=true&seed={seed}"
-        try:
-            print(f"Requesting image with model: {model}...")
-            res = requests.get(url, headers=headers, timeout=60)
-            if res.status_code == 200 and len(res.content) > 5000:
-                with open(filename, "wb") as f:
-                    f.write(res.content)
-                print(f"Saved {filename} successfully using {model}.")
-                return
-            else:
-                print(f"Model {model} returned status {res.status_code}, trying next...")
-        except Exception as e:
-            print(f"Model {model} request failed: {e}")
-        time.sleep(2)
-        
-    raise Exception("Failed to generate image across all models.")
+    headers = {"User-Agent": "Mozilla/5.0"}
+    res = requests.get(url, headers=headers, timeout=120)
+    if res.status_code == 200 and len(res.content) > 5000:
+        with open(filename, "wb") as f:
+            f.write(res.content)
+    else:
+        raise Exception(f"Failed to generate realistic POV image: {res.status_code}")
 
 def create_video(scenes):
     clips = []
     for i, prompt in enumerate(scenes):
         img_name = f"scene_{i}.jpg"
-        print(f"Generating scene {i+1}...")
+        print(f"Generating POV scene {i+1}...")
         download_image(prompt, img_name)
         
         clip = ImageClip(img_name)
         clip = clip.with_duration(3.5) if hasattr(clip, "with_duration") else clip.set_duration(3.5)
-        clip = clip.resize(lambda t: 1 + 0.03 * t)
+        # حركة كاميرا خفيفة جداً لتقليد تصوير اليد الحقيقي
+        clip = clip.resize(lambda t: 1 + 0.02 * t)
         clips.append(clip)
         
-    print("Combining cinematic scenes...")
+    print("Stitching video...")
     final_clip = concatenate_videoclips(clips, method="compose")
     output_path = "shorts_video.mp4"
     final_clip.write_videofile(output_path, fps=30, codec="libx264", preset="fast")
     return output_path
 
 def upload_video_to_github_release(video_path):
-    print("Uploading video directly to GitHub CDN Release...")
+    print("Uploading to GitHub CDN Release...")
     tag_name = f"video-{int(time.time())}"
     headers = {
         "Authorization": f"Bearer {GITHUB_TOKEN}",
@@ -105,10 +94,8 @@ def upload_video_to_github_release(video_path):
         "prerelease": False
     }
     r = requests.post(create_url, json=release_data, headers=headers)
-    if r.status_code not in [200, 201]:
-        raise Exception(f"Failed to create release: {r.status_code} - {r.text}")
-    
     upload_url_template = r.json()["upload_url"].split("{")[0]
+    
     upload_url = f"{upload_url_template}?name=shorts_video.mp4"
     upload_headers = {
         "Authorization": f"Bearer {GITHUB_TOKEN}",
@@ -116,9 +103,6 @@ def upload_video_to_github_release(video_path):
     }
     with open(video_path, "rb") as f:
         up_res = requests.post(upload_url, data=f, headers=upload_headers)
-        
-    if up_res.status_code not in [200, 201]:
-        raise Exception(f"Failed to upload asset: {up_res.status_code} - {up_res.text}")
         
     return up_res.json()["browser_download_url"]
 
@@ -168,16 +152,13 @@ def post_to_buffer_graphql(title, caption, video_url):
             }
         }
         res = requests.post(endpoint, json={"query": query, "variables": variables}, headers=headers)
-        print(f"Publish result for channel {pid}: {res.status_code}")
+        print(f"Publish result for {pid}: {res.status_code}")
         print(f"Response: {res.text}")
 
 if __name__ == "__main__":
     story = random.choice(STORIES)
-    print(f"Starting creation: {story['title']}")
-    
+    print(f"Producing: {story['title']}")
     video_file = create_video(story["scenes"])
     public_url = upload_video_to_github_release(video_file)
-    print(f"Direct CDN URL: {public_url}")
-    
-    print("Posting to YouTube via Buffer GraphQL...")
+    print(f"Public URL: {public_url}")
     post_to_buffer_graphql(story["title"], story["caption"], public_url)
