@@ -50,17 +50,15 @@ def upload_to_tmpfiles(video_path):
         res = requests.post("https://tmpfiles.org/api/v1/upload", files={"file": f})
     data = res.json()
     url = data["data"]["url"]
-    # تحويل الرابط إلى رابط تحميل مباشر بدون صفحة ويب
     return url.replace("https://tmpfiles.org/", "https://tmpfiles.org/dl/")
 
-def post_to_buffer_graphql(caption, video_url):
+def post_to_buffer_graphql(title, caption, video_url):
     endpoint = "https://api.buffer.com"
     headers = {
         "Authorization": f"Bearer {BUFFER_TOKEN}",
         "Content-Type": "application/json"
     }
 
-    # الهيكل المعتمد في Buffer API لرفع الفيديو والنشر المباشر
     query = """
     mutation CreatePost($input: CreatePostInput!) {
         createPost(input: $input) {
@@ -87,10 +85,18 @@ def post_to_buffer_graphql(caption, video_url):
                 "assets": [
                     {
                         "video": {
-                            "url": video_url
+                            "url": video_url,
+                            "title": title,
+                            "category": "Pets & Animals"
                         }
                     }
-                ]
+                ],
+                "metadata": {
+                    "youtube": {
+                        "title": title,
+                        "category": "15"
+                    }
+                }
             }
         }
         res = requests.post(endpoint, json={"query": query, "variables": variables}, headers=headers)
@@ -98,7 +104,8 @@ def post_to_buffer_graphql(caption, video_url):
         print(f"Response: {res.text}")
 
 if __name__ == "__main__":
-    caption = "A poor kitten abandoned in the rain gets a second chance 🥺❤️ #cat #kitten #story #shorts #viral"
+    video_title = "Abandoned Kitten Gets a Second Chance 🥺❤️ #shorts"
+    video_caption = "A poor kitten abandoned in the freezing rain gets saved 🥺❤️ Wait till the end! #cat #kitten #sadstory #shorts #viral #rescue"
     
     print("Creating AI Video...")
     video_file = create_video()
@@ -107,5 +114,5 @@ if __name__ == "__main__":
     public_url = upload_to_tmpfiles(video_file)
     print(f"Direct URL: {public_url}")
     
-    print("Posting to social channels via Buffer GraphQL...")
-    post_to_buffer_graphql(caption, public_url)
+    print("Posting to YouTube via Buffer GraphQL...")
+    post_to_buffer_graphql(video_title, video_caption, public_url)
