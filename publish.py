@@ -1,6 +1,7 @@
 import os
 import time
 import random
+import urllib.parse
 import requests
 import PIL.Image
 import PIL.ImageDraw
@@ -74,7 +75,6 @@ def download_pexels_image(query, filename):
     print(f"Searching Pexels for real photo: '{query}'...")
     headers = {"Authorization": PEXELS_KEY} if PEXELS_KEY else {}
     
-    # محاولة البحث عن الكلمة المطلوبة
     url = f"https://api.pexels.com/v1/search?query={urllib.parse.quote(query)}&orientation=portrait&per_page=15"
     photos = []
     
@@ -85,7 +85,6 @@ def download_pexels_image(query, filename):
     except Exception as e:
         print(f"Error connecting to Pexels: {e}")
 
-    # إذا لم توجد نتائج، ابحث بكلمات عامة مضمونة النتائج
     if not photos:
         fallback_queries = ["cat", "dog", "kitten", "puppy"]
         for fb in fallback_queries:
@@ -105,7 +104,6 @@ def download_pexels_image(query, filename):
             f.write(img_data)
         print(f"Successfully downloaded high-res photo from Pexels.")
     else:
-        # رابط مباشر كحل أخير آمن حتى لا يسقط الاسكريبت
         fallback_url = "https://images.pexels.com/photos/45201/kitty-cat-kitten-pet-45201.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=1280&w=720"
         img_data = requests.get(fallback_url, timeout=60).content
         with open(filename, "wb") as f:
