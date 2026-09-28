@@ -20,7 +20,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          pip install requests moviepy pillow
+          pip install requests "moviepy==1.0.3" pillow
 
       - name: Run Auto Generation & Publish Script
         env:
