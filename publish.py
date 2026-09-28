@@ -22,39 +22,28 @@ PEXELS_KEY = os.getenv("PEXELS_API_KEY", "").strip()
 
 STORIES = [
     {
-        "title": "A shivering kitten found alone in the cold gets a second chance 🥺❤️ #shorts",
+        "title": "A shivering kitten found alone gets a second chance 🥺❤️ #shorts",
         "caption": "Look at how much love and care can change a life! 🥺❤️ Wait till the end! #kitten #cat #rescue #heartwarming #shorts #viral",
         "queries": [
-            ("sad wet kitten", "I found this poor shivering kitten all alone..."),
-            ("person holding kitten", "I immediately picked him up and kept him warm."),
-            ("feeding baby kitten milk", "He was starving and drank his milk right away."),
-            ("cute happy sleeping kitten", "Now he is safe, healthy, and full of love ❤️")
+            ("kitten crying", "I found this poor shivering kitten all alone..."),
+            ("cat rescue", "I immediately picked him up and kept him warm."),
+            ("feeding kitten", "He was starving and drank his milk right away."),
+            ("happy kitten", "Now he is safe, healthy, and full of love ❤️")
         ]
     },
     {
         "title": "Helpless puppy left behind finds a loving family 🐶❤️ #shorts",
         "caption": "Nobody stopped for him until today 😭❤️ Look at that happy smile! #puppy #dog #dogrescue #wholesome #shorts #viral",
         "queries": [
-            ("sad lonely puppy street", "This little puppy was abandoned on the sidewalk..."),
-            ("human hands holding puppy", "I couldn't just walk away and leave him there."),
-            ("puppy eating food bowl", "We gave him a warm bath and a good meal."),
-            ("happy golden puppy playing", "He finally found his forever home and family ❤️")
-        ]
-    },
-    {
-        "title": "Rescuing an injured baby animal in the woods 🐻🌲 #shorts",
-        "caption": "Every life deserves a helping hand 🥺❤️ #wildlife #rescue #nature #animalrescue #shorts #viral",
-        "queries": [
-            ("baby animal forest woods", "We spotted this tiny baby animal lost in the woods..."),
-            ("caring hands wild animal", "Carefully making sure it wasn't hurt."),
-            ("wildlife rehab animal care", "Giving him the shelter and care he needed."),
-            ("happy cute baby animal nature", "Now healthy, protected, and thriving in peace ❤️")
+            ("sad puppy", "This little puppy was abandoned on the sidewalk..."),
+            ("dog rescue", "I couldn't just walk away and leave him there."),
+            ("feeding puppy", "We gave him a warm bath and a good meal."),
+            ("happy dog", "He finally found his forever home and family ❤️")
         ]
     }
 ]
 
 def add_top_subtitle(image_path, text):
-    """إضافة شريط النص التوضيحي أعلى الصورة تماماً كالفيديوهات الاحترافية"""
     img = PIL.Image.open(image_path).convert("RGBA")
     w, h = img.size
     
@@ -83,44 +72,59 @@ def add_top_subtitle(image_path, text):
 
 def download_pexels_image(query, filename):
     print(f"Searching Pexels for real photo: '{query}'...")
-    url = f"https://api.pexels.com/v1/search?query={query}&orientation=portrait&per_page=15"
-    headers = {"Authorization": PEXELS_KEY}
+    headers = {"Authorization": PEXELS_KEY} if PEXELS_KEY else {}
     
-    res = requests.get(url, headers=headers, timeout=30)
-    data = res.json()
+    # محاولة البحث عن الكلمة المطلوبة
+    url = f"https://api.pexels.com/v1/search?query={urllib.parse.quote(query)}&orientation=portrait&per_page=15"
+    photos = []
     
-    photos = data.get("photos", [])
-    if not photos:
-        # بحث بديل عام في حال لم توجد نتائج محددة
-        url = f"https://api.pexels.com/v1/search?query=cute animal&orientation=portrait&per_page=15"
-        res = requests.get(url, headers=headers, timeout=30)
-        photos = res.json().get("photos", [])
+    try:
+        res = requests.get(url, headers=headers, timeout=20)
+        if res.status_code == 200:
+            photos = res.json().get("photos", [])
+    except Exception as e:
+        print(f"Error connecting to Pexels: {e}")
 
-    photo = random.choice(photos)
-    # جلب الصورة بأعلى دقة عمودية portrait
-    img_url = photo["src"].get("portrait") or photo["src"].get("large2x")
-    
-    img_data = requests.get(img_url, timeout=60).content
-    with open(filename, "wb") as f:
-        f.write(img_data)
-    print(f"Successfully downloaded high-res photo from Pexels.")
+    # إذا لم توجد نتائج، ابحث بكلمات عامة مضمونة النتائج
+    if not photos:
+        fallback_queries = ["cat", "dog", "kitten", "puppy"]
+        for fb in fallback_queries:
+            try:
+                res = requests.get(f"https://api.pexels.com/v1/search?query={fb}&orientation=portrait&per_page=15", headers=headers, timeout=20)
+                if res.status_code == 200 and res.json().get("photos"):
+                    photos = res.json()["photos"]
+                    break
+            except Exception:
+                pass
+
+    if photos:
+        photo = random.choice(photos)
+        img_url = photo["src"].get("portrait") or photo["src"].get("large2x") or photo["src"].get("large")
+        img_data = requests.get(img_url, timeout=60).content
+        with open(filename, "wb") as f:
+            f.write(img_data)
+        print(f"Successfully downloaded high-res photo from Pexels.")
+    else:
+        # رابط مباشر كحل أخير آمن حتى لا يسقط الاسكريبت
+        fallback_url = "https://images.pexels.com/photos/45201/kitty-cat-kitten-pet-45201.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=1280&w=720"
+        img_data = requests.get(fallback_url, timeout=60).content
+        with open(filename, "wb") as f:
+            f.write(img_data)
+        print("Used high-res fallback photo.")
 
 def create_video(story_items):
     clips = []
     for i, (search_query, subtitle) in enumerate(story_items):
         img_name = f"scene_{i}.jpg"
         download_pexels_image(search_query, img_name)
-        
-        # إضافة شريط السرد في الأعلى
         add_top_subtitle(img_name, subtitle)
         
         clip = ImageClip(img_name)
         clip = clip.with_duration(3.5) if hasattr(clip, "with_duration") else clip.set_duration(3.5)
-        # حركة سينمائية هادئة
         clip = clip.resize(lambda t: 1 + 0.02 * t)
         clips.append(clip)
         
-    print("Combining real 4K scenes into final video...")
+    print("Combining real scenes into final video...")
     final_clip = concatenate_videoclips(clips, method="compose")
     output_path = "shorts_video.mp4"
     final_clip.write_videofile(output_path, fps=30, codec="libx264", preset="fast")
