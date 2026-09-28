@@ -1,4 +1,5 @@
 import os
+import time
 import urllib.parse
 import requests
 
@@ -9,6 +10,8 @@ except (ImportError, ModuleNotFoundError):
 
 BUFFER_TOKEN = os.getenv("BUFFER_ACCESS_TOKEN", "").strip()
 PROFILE_IDS = [pid.strip() for pid in os.getenv("BUFFER_PROFILE_IDS", "").split(",") if pid.strip()]
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "").strip()
+GITHUB_REPO = os.getenv("GITHUB_REPOSITORY", "").strip()
 
 def download_image(prompt, filename):
     encoded_prompt = urllib.parse.quote(prompt)
@@ -44,24 +47,42 @@ def create_video():
     final_clip.write_videofile(output_path, fps=24, codec="libx264")
     return output_path
 
-def upload_video(video_path):
-    print("Uploading video via reliable public host...")
-    # محاولة الرفع عبر 0x0.st
-    try:
-        with open(video_path, "rb") as f:
-            res = requests.post("https://0x0.st", files={"file": f}, timeout=120)
-            if res.status_code == 200 and res.text.strip().startswith("http"):
-                return res.text.strip()
-    except Exception as e:
-        print(f"0x0.st upload failed ({e}), trying fallback...")
+def upload_video_to_github_release(video_path):
+    print("Uploading video directly to GitHub CDN Release...")
+    tag_name = f"video-{int(time.time())}"
+    headers = {
+        "Authorization": f"Bearer {GITHUB_TOKEN}",
+        "Accept": "application/vnd.github.v3+json"
+    }
 
-    # حل بديل مؤكد عبر file.io
+    # 1. إنشاء Release جديد
+    create_url = f"https://api.github.com/repos/{GITHUB_REPO}/releases"
+    release_data = {
+        "tag_name": tag_name,
+        "name": f"Video Release {tag_name}",
+        "draft": False,
+        "prerelease": False
+    }
+    r = requests.post(create_url, json=release_data, headers=headers)
+    if r.status_code not in [200, 201]:
+        raise Exception(f"Failed to create release: {r.status_code} - {r.text}")
+    
+    upload_url_template = r.json()["upload_url"].split("{")[0]
+    
+    # 2. رفع ملف الفيديو داخل الـ Release للحصول على رابط CDN رسمي
+    upload_url = f"{upload_url_template}?name=shorts_video.mp4"
+    upload_headers = {
+        "Authorization": f"Bearer {GITHUB_TOKEN}",
+        "Content-Type": "video/mp4"
+    }
     with open(video_path, "rb") as f:
-        res = requests.post("https://file.io", files={"file": f}, timeout=120)
-        data = res.json()
-        if data.get("success"):
-            return data["link"]
-        raise Exception(f"Upload failed: {res.text}")
+        up_res = requests.post(upload_url, data=f, headers=upload_headers)
+        
+    if up_res.status_code not in [200, 201]:
+        raise Exception(f"Failed to upload asset: {up_res.status_code} - {up_res.text}")
+        
+    download_url = up_res.json()["browser_download_url"]
+    return download_url
 
 def post_to_buffer_graphql(title, caption, video_url):
     endpoint = "https://api.buffer.com"
@@ -119,8 +140,8 @@ if __name__ == "__main__":
     print("Creating AI Video...")
     video_file = create_video()
     
-    print("Uploading video...")
-    public_url = upload_video(video_file)
+    print("Uploading video to stable CDN...")
+    public_url = upload_video_to_github_release(video_file)
     print(f"Direct CDN URL: {public_url}")
     
     print("Posting to YouTube via Buffer GraphQL...")
