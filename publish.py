@@ -1,6 +1,7 @@
 import os
 import time
 import requests
+from lumaai import LumaAI
 
 LUMA_API_KEY = os.getenv("LUMA_API_KEY", "").strip()
 BUFFER_TOKEN = os.getenv("BUFFER_ACCESS_TOKEN", "").strip()
@@ -10,53 +11,26 @@ def generate_luma_video(prompt):
     if not LUMA_API_KEY:
         raise ValueError("LUMA_API_KEY is missing or empty.")
 
-    # تجربة ترويسات Luma الرسمية
-    headers = {
-        "Authorization": f"Bearer {LUMA_API_KEY}",
-        "accept": "application/json",
-        "content-type": "application/json"
-    }
-    payload = {
-        "prompt": prompt,
-        "aspect_ratio": "9:16",
-        "loop": False
-    }
+    client = LumaAI(auth_token=LUMA_API_KEY)
 
-    print("Initiating Luma video generation...")
-    res = requests.post(
-        "https://api.lumalabs.ai/dream-machine/v1/generations",
-        json=payload,
-        headers=headers
+    print("Initiating Luma video generation via official SDK...")
+    generation = client.generations.create(
+        prompt=prompt,
+        aspect_ratio="9:16",
+        loop=False
     )
+    generation_id = generation.id
+    print(f"Generation started successfully! Task ID: {generation_id}")
 
-    # إذا رفض Bearer، تجربة إرسال المفتاح بدون Bearer
-    if res.status_code == 403:
-        print("Retrying with raw token header...")
-        headers["Authorization"] = LUMA_API_KEY
-        res = requests.post(
-            "https://api.lumalabs.ai/dream-machine/v1/generations",
-            json=payload,
-            headers=headers
-        )
-
-    if res.status_code not in [200, 201]:
-        raise Exception(f"Luma API Error ({res.status_code}): {res.text}")
-
-    generation_id = res.json()["id"]
-    print(f"Generation started successfully. Task ID: {generation_id}")
-
-    status_url = f"https://api.lumalabs.ai/dream-machine/v1/generations/{generation_id}"
     while True:
         time.sleep(12)
-        status_res = requests.get(status_url, headers=headers).json()
-        state = status_res.get("state")
-        print(f"Current Generation State: {state}...")
+        status = client.generations.get(id=generation_id)
+        print(f"Current Generation State: {status.state}...")
 
-        if state == "completed":
-            return status_res["assets"]["video"]
-        elif state == "failed":
-            reason = status_res.get("failure_reason", "Unknown error")
-            raise Exception(f"Luma generation failed: {reason}")
+        if status.state == "completed":
+            return status.assets.video
+        elif status.state == "failed":
+            raise Exception(f"Luma generation failed: {status.failure_reason}")
 
 def post_to_buffer_graphql(caption, video_url):
     endpoint = "https://api.buffer.com"
@@ -89,18 +63,14 @@ def post_to_buffer_graphql(caption, video_url):
                 "schedulingType": "now"
             }
         }
-        res = requests.post(
-            endpoint,
-            json={"query": query, "variables": variables},
-            headers=headers
-        )
-        print(f"Publish result for channel {pid}: {res.status_code} - {res.text}")
+        res = requests.post(endpoint, json={"query": query, "variables": variables}, headers=headers)
+        print(f"Buffer response for {pid}: {res.status_code} - {res.text}")
 
 if __name__ == "__main__":
-    prompt = "Hyper-realistic cinematic slow motion, tiny poor crying ginger kitten sitting under heavy rain in a dark street puddle, big tearful eyes looking up desperately, detailed wet fur, emotional warm light in the background, 8k"
+    prompt = "Hyper-realistic dramatic cinematic 8k, tiny poor crying ginger kitten sitting under heavy rain in a dark street puddle, big tearful eyes looking up desperately, detailed wet fur, emotional warm light in the background"
     caption = "He was left all alone in the freezing rain 💔🥺 Wait for the end! #cat #kitten #sadstory #viral #shorts #lumaai"
 
-    print("Generating AI Video via Luma Dream Machine...")
+    print("Generating AI Video via Luma SDK...")
     video_url = generate_luma_video(prompt)
     print(f"Video direct link: {video_url}")
 
