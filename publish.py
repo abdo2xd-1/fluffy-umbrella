@@ -50,6 +50,7 @@ def upload_to_tmpfiles(video_path):
         res = requests.post("https://tmpfiles.org/api/v1/upload", files={"file": f})
     data = res.json()
     url = data["data"]["url"]
+    # تحويل الرابط إلى رابط تحميل مباشر بدون صفحة ويب
     return url.replace("https://tmpfiles.org/", "https://tmpfiles.org/dl/")
 
 def post_to_buffer_graphql(caption, video_url):
@@ -59,6 +60,7 @@ def post_to_buffer_graphql(caption, video_url):
         "Content-Type": "application/json"
     }
 
+    # الهيكل المعتمد في Buffer API لرفع الفيديو والنشر المباشر
     query = """
     mutation CreatePost($input: CreatePostInput!) {
         createPost(input: $input) {
@@ -68,7 +70,7 @@ def post_to_buffer_graphql(caption, video_url):
                     status
                 }
             }
-            ... on UserError {
+            ... on MutationError {
                 message
             }
         }
@@ -80,16 +82,20 @@ def post_to_buffer_graphql(caption, video_url):
             "input": {
                 "channelId": pid,
                 "text": caption,
-                "media": {
-                    "video": {
-                        "url": video_url
+                "schedulingType": "automatic",
+                "mode": "shareNow",
+                "assets": [
+                    {
+                        "video": {
+                            "url": video_url
+                        }
                     }
-                },
-                "schedulingType": "now"
+                ]
             }
         }
         res = requests.post(endpoint, json={"query": query, "variables": variables}, headers=headers)
-        print(f"Publish result for channel {pid}: {res.status_code} - {res.text}")
+        print(f"Publish result for channel {pid}: {res.status_code}")
+        print(f"Response: {res.text}")
 
 if __name__ == "__main__":
     caption = "A poor kitten abandoned in the rain gets a second chance 🥺❤️ #cat #kitten #story #shorts #viral"
