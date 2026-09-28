@@ -1,9 +1,10 @@
-name: Auto Generate and Publish AI Shorts
+name: Auto Generate and Publish Animal Videos (2K Shorts & Longs)
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 12,18 * * *'
+    # 01:00 UTC و 13:00 UTC (أوقات الذروة في أمريكا وكندا وأستراليا)
+    - cron: '0 1,13 * * *'
 
 permissions:
   contents: write
@@ -23,7 +24,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          pip install requests "moviepy==1.0.3" pillow
+          pip install requests "moviepy==1.0.3" pillow gTTS
 
       - name: Run Auto Generation & Publish Script
         env:
