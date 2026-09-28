@@ -23,17 +23,17 @@ STORIES = [
         "title": "I rescued a little bear cub that was attacked by wolves 🐺🐻 #shorts",
         "caption": "While driving through the forest, I saw a tiny cub in danger... Now he feels safe with me ❤️ #animalrescue #wildlife #bear #heartwarming #shorts #viral",
         "scenes": [
-            "POV real iPhone camera shot, first-person view, human hand reaching out to touch a tiny shivering bear cub hiding in the forest grass, hyperrealistic natural lighting, amateur video frame",
-            "POV mobile camera footage, a cute fluffy bear cub sitting inside the passenger seat of a car, human hand gently stroking its head, warm natural sunlight, genuine candid shot",
-            "first-person perspective phone recording, little bear cub happily drinking milk from a bowl on the living room floor, close-up, authentic home video",
-            "POV smartphone video frame, human hand petting a playful healthy bear cub lying on a cozy carpet next to a fireplace, extreme realistic fur texture, cozy mood"
+            "POV real iPhone camera shot, first-person view, human hand reaching out to touch a tiny shivering baby bear cub in the forest grass, hyperrealistic natural lighting, amateur video frame",
+            "POV mobile camera footage, a cute fluffy brown bear cub sitting in the passenger seat of a car, human hand gently stroking its head, warm natural sunlight",
+            "first-person perspective phone recording, little bear cub happily drinking warm milk from a bowl on the floor, authentic home video",
+            "POV smartphone video frame, human hand petting a playful healthy bear cub lying on a cozy rug next to a fireplace, cozy mood"
         ]
     },
     {
         "title": "I found a tiny freezing kangaroo joey left behind 🦘❤️ #shorts",
         "caption": "He was so small and scared. Look at him now! 🥹❤️ #animalrescue #kangaroo #wildlife #wholesome #shorts #viral",
         "scenes": [
-            "POV iPhone camera shot, two human hands gently holding a very tiny adorable baby kangaroo joey outdoors, looking directly into the camera lens, real smartphone video quality",
+            "POV iPhone camera shot, two human hands gently holding a very tiny adorable baby kangaroo joey outdoors, looking directly into the camera lens, real smartphone video frame",
             "first-person view amateur mobile recording, baby kangaroo wrapped inside a warm green towel pouch, big glassy curious eyes, natural soft outdoor lighting",
             "POV smartphone frame, feeding a tiny kangaroo joey with a small milk bottle, human fingers holding the bottle, authentic documentary style",
             "POV phone camera footage, healthy smiling baby kangaroo hopping towards the camera indoors, cozy living room background, heartwarming"
@@ -43,21 +43,37 @@ STORIES = [
 
 def download_image(prompt, filename):
     full_prompt = (
-        f"{prompt}, 8k, raw color photo, authentic mobile footage, "
-        "shot on iPhone 15 Pro, unedited, hyperrealistic texture, cinematic realism"
+        f"{prompt}, real smartphone camera photo, candid handheld shot, natural lighting, "
+        "hyperrealistic, highly detailed, unedited documentary style"
     )
     encoded = urllib.parse.quote(full_prompt)
-    seed = random.randint(1000, 999999)
-    # استخدام موديل flux عالي الدقة بدون علامات مائية
-    url = f"https://image.pollinations.ai/prompt/{encoded}?width=720&height=1280&model=flux&nologo=true&seed={seed}"
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+
+    # تجربة الموديلات المستقرة بالترتيب لضمان عدم السقوط
+    models = ["turbo", "default"]
     
-    headers = {"User-Agent": "Mozilla/5.0"}
-    res = requests.get(url, headers=headers, timeout=120)
-    if res.status_code == 200 and len(res.content) > 5000:
-        with open(filename, "wb") as f:
-            f.write(res.content)
-    else:
-        raise Exception(f"Failed to generate realistic POV image: {res.status_code}")
+    for attempt in range(5):
+        seed = random.randint(1000, 999999)
+        model = models[attempt % len(models)]
+        # نستخدم دقة 720x1280 وهي نسبة 9:16 المعتمدة لفيديوهات Shorts
+        url = f"https://image.pollinations.ai/prompt/{encoded}?width=720&height=1280&model={model}&nologo=true&seed={seed}"
+        
+        try:
+            print(f"Requesting image (attempt {attempt+1}, model={model})...")
+            res = requests.get(url, headers=headers, timeout=45)
+            if res.status_code == 200 and len(res.content) > 10000:
+                with open(filename, "wb") as f:
+                    f.write(res.content)
+                print(f"Successfully saved {filename}")
+                return
+            else:
+                print(f"Status code {res.status_code}, retrying...")
+        except Exception as e:
+            print(f"Connection issue: {e}, retrying...")
+            
+        time.sleep(3)
+        
+    raise Exception(f"Failed to generate realistic POV image after retries")
 
 def create_video(scenes):
     clips = []
@@ -68,7 +84,7 @@ def create_video(scenes):
         
         clip = ImageClip(img_name)
         clip = clip.with_duration(3.5) if hasattr(clip, "with_duration") else clip.set_duration(3.5)
-        # حركة كاميرا خفيفة جداً لتقليد تصوير اليد الحقيقي
+        # زوم ديناميكي يحاكي حركة كاميرا الموبايل الحقيقية
         clip = clip.resize(lambda t: 1 + 0.02 * t)
         clips.append(clip)
         
