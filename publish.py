@@ -1,37 +1,32 @@
 import os
-import time
 import requests
-from lumaai import LumaAI
+import fal_client
 
-LUMA_API_KEY = os.getenv("LUMA_API_KEY", "").strip()
+FAL_KEY = os.getenv("FAL_KEY", "").strip()
 BUFFER_TOKEN = os.getenv("BUFFER_ACCESS_TOKEN", "").strip()
 PROFILE_IDS = [pid.strip() for pid in os.getenv("BUFFER_PROFILE_IDS", "").split(",") if pid.strip()]
 
-def generate_luma_video(prompt):
-    if not LUMA_API_KEY:
-        raise ValueError("LUMA_API_KEY is missing or empty.")
+def generate_video_with_fal(prompt):
+    if not FAL_KEY:
+        raise ValueError("FAL_KEY is missing or empty in secrets.")
 
-    client = LumaAI(auth_token=LUMA_API_KEY)
+    print("Sending generation request to Fal.ai...")
 
-    print("Initiating Luma video generation via official SDK...")
-    generation = client.generations.create(
-        model="ray-1",
-        prompt=prompt,
-        aspect_ratio="9:16",
-        loop=False
+    # استخدام نموذج LTX-Video السريع والسينمائي
+    result = fal_client.subscribe(
+        "fal-ai/ltx-video",
+        arguments={
+            "prompt": prompt,
+            "aspect_ratio": "9:16"
+        },
+        with_logs=True
     )
-    generation_id = generation.id
-    print(f"Generation started successfully! Task ID: {generation_id}")
 
-    while True:
-        time.sleep(12)
-        status = client.generations.get(id=generation_id)
-        print(f"Current Generation State: {status.state}...")
+    video_url = result.get("video", {}).get("url")
+    if not video_url:
+        raise Exception(f"Failed to extract video url from result: {result}")
 
-        if status.state == "completed":
-            return status.assets.video
-        elif status.state == "failed":
-            raise Exception(f"Luma generation failed: {status.failure_reason}")
+    return video_url
 
 def post_to_buffer_graphql(caption, video_url):
     endpoint = "https://api.buffer.com"
@@ -65,15 +60,15 @@ def post_to_buffer_graphql(caption, video_url):
             }
         }
         res = requests.post(endpoint, json={"query": query, "variables": variables}, headers=headers)
-        print(f"Buffer response for {pid}: {res.status_code} - {res.text}")
+        print(f"Publish result for channel {pid}: {res.status_code} - {res.text}")
 
 if __name__ == "__main__":
-    prompt = "Hyper-realistic dramatic cinematic 8k, tiny poor crying ginger kitten sitting under heavy rain in a dark street puddle, big tearful eyes looking up desperately, detailed wet fur, emotional warm light in the background"
-    caption = "He was left all alone in the freezing rain 💔🥺 Wait for the end! #cat #kitten #sadstory #viral #shorts #lumaai"
+    prompt_text = "Cinematic slow motion, adorable tiny crying ginger kitten shivering under heavy rain in a dark alley, big glassy emotional tearful eyes, photorealistic 8k, hyper detailed fur"
+    caption_text = "Nobody would stop for him in the freezing rain 💔🥺 Wait till the end! #cat #kitten #sadstory #viral #shorts #ai"
 
-    print("Generating AI Video via Luma SDK...")
-    video_url = generate_luma_video(prompt)
-    print(f"Video direct link: {video_url}")
+    print("Generating cinematic AI video via Fal.ai...")
+    video_url = generate_video_with_fal(prompt_text)
+    print(f"Video generated successfully: {video_url}")
 
     print("Publishing to YouTube via Buffer GraphQL...")
-    post_to_buffer_graphql(caption, video_url)
+    post_to_buffer_graphql(caption_text, video_url)
