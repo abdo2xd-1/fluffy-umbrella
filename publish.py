@@ -85,16 +85,14 @@ def post_to_buffer_graphql(title, caption, video_url):
                 "assets": [
                     {
                         "video": {
-                            "url": video_url,
-                            "title": title,
-                            "category": "Pets & Animals"
+                            "url": video_url
                         }
                     }
                 ],
                 "metadata": {
                     "youtube": {
                         "title": title,
-                        "category": "15"
+                        "categoryId": "15"
                     }
                 }
             }
