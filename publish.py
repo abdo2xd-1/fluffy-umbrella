@@ -44,13 +44,20 @@ def create_video():
     final_clip.write_videofile(output_path, fps=24, codec="libx264")
     return output_path
 
-def upload_to_tmpfiles(video_path):
-    print("Uploading video to get public URL...")
+def upload_to_direct_host(video_path):
+    print("Uploading video to get a reliable direct CDN link...")
+    # الرفع عبر litterbox للحصول على رابط MP4 خام ومباشر
+    data = {
+        "reqtype": "fileupload",
+        "time": "12h"
+    }
     with open(video_path, "rb") as f:
-        res = requests.post("https://tmpfiles.org/api/v1/upload", files={"file": f})
-    data = res.json()
-    url = data["data"]["url"]
-    return url.replace("https://tmpfiles.org/", "https://tmpfiles.org/dl/")
+        res = requests.post("https://litterbox.catbox.moe/resources/internals/api.php", data=data, files={"fileToUpload": f})
+    
+    direct_url = res.text.strip()
+    if not direct_url.startswith("http"):
+        raise Exception(f"Upload failed: {res.text}")
+    return direct_url
 
 def post_to_buffer_graphql(title, caption, video_url):
     endpoint = "https://api.buffer.com"
@@ -108,9 +115,9 @@ if __name__ == "__main__":
     print("Creating AI Video...")
     video_file = create_video()
     
-    print("Generating public download link...")
-    public_url = upload_to_tmpfiles(video_file)
-    print(f"Direct URL: {public_url}")
+    print("Uploading video...")
+    public_url = upload_to_direct_host(video_file)
+    print(f"Direct CDN URL: {public_url}")
     
     print("Posting to YouTube via Buffer GraphQL...")
     post_to_buffer_graphql(video_title, video_caption, public_url)
