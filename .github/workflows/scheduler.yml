@@ -24,7 +24,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          pip install requests "moviepy==1.0.3" pillow gTTS
+          pip install requests "moviepy==1.0.3" pillow edge-tts
 
       - name: Run Auto Generation & Publish Script
         env:
