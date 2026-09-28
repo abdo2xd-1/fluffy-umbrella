@@ -9,7 +9,7 @@ import PIL.ImageDraw
 import PIL.ImageFont
 from gtts import gTTS
 
-# توافق مع Pillow و MoviePy
+# إصلاح توافق MoviePy مع إصدارات Pillow الحديثة
 if not hasattr(PIL.Image, 'ANTIALIAS'):
     PIL.Image.ANTIALIAS = PIL.Image.Resampling.LANCZOS
 
@@ -42,8 +42,8 @@ SHORTS_TOPICS = [
         "queries": ["funny pet playing", "kitten chasing tail", "puppy playing toy", "cute funny animal"]
     },
     {
-        "title": "Orange Cat Energy is Unmatched! 🐱😭 [2K Ultra HD] #shorts",
-        "caption": "Not a single brain cell was used in this video 🤣 #orangecat #catvideos #funnycats #petsfunny #shorts",
+        "title": "When The Orange Cat Braincell Disappears Completely 🐱😭 [2K Ultra HD] #shorts",
+        "caption": "Orange cat energy is undefeated! Watch till the end 🤣 #orangecat #catvideos #funnycats #petsfunny #shorts",
         "queries": ["orange cat funny", "cat slipping", "kitten jumping funny", "cat playing crazy"]
     },
     {
@@ -53,7 +53,7 @@ SHORTS_TOPICS = [
     }
 ]
 
-# مواضيع الفيديوهات الطويلة الوثائقية (3 فيديوهات أسبوعياً - 2K Landscape)
+# مواضيع الفيديوهات الطويلة الوثائقية والمعلوماتية (2K Landscape 16:9)
 LONG_DOC_TOPICS = [
     {
         "title": "Mind-Blowing Facts About Cats You Never Knew! 🐱 [2K Documentary]",
@@ -104,7 +104,6 @@ def download_pexels_video(query, filename, orientation="portrait"):
         print(f"Pexels API error: {e}")
 
     if not videos:
-        # بحث احتياطي
         try:
             res = requests.get(f"https://api.pexels.com/videos/search?query=wildlife animal&orientation={orientation}&per_page=10", headers=headers, timeout=25)
             if res.status_code == 200:
@@ -122,7 +121,7 @@ def download_pexels_video(query, filename, orientation="portrait"):
         )
         chosen_file = files_sorted[0].get("link") if files_sorted else None
         if chosen_file:
-            print("Downloading best quality clip...")
+            print("Downloading highest quality clip...")
             vid_data = requests.get(chosen_file, timeout=90).content
             with open(filename, "wb") as f:
                 f.write(vid_data)
@@ -137,7 +136,7 @@ def build_shorts_2k(queries, output_filename):
     """بناء فيديو شورتس بدقة 2K رأسية (1440x2560)"""
     clips = []
     for i, q in enumerate(queries):
-        clip_name = f"short_clip_{i}.mp4"
+        clip_name = f"short_{i}_{int(time.time())}.mp4"
         download_pexels_video(q, clip_name, orientation="portrait")
         try:
             sub = VideoFileClip(clip_name)
@@ -165,11 +164,11 @@ def build_long_documentary_2k(sections, output_filename):
     """بناء فيديو طويل وثائقي بدقة 2K أفقية (2560x1440) مع تعليق صوتي بالإنجليزية"""
     clips = []
     for i, sec in enumerate(sections):
-        clip_name = f"long_clip_{i}.mp4"
-        audio_name = f"voice_{i}.mp3"
+        clip_name = f"long_clip_{i}_{int(time.time())}.mp4"
+        audio_name = f"voice_{i}_{int(time.time())}.mp3"
         download_pexels_video(sec["query"], clip_name, orientation="landscape")
         
-        # إنشاء تعليق صوتي احترافي بالإنجليزية
+        # توليد صوت السرد الصوتي
         tts = gTTS(text=sec["fact"], lang='en', tld='com')
         tts.save(audio_name)
         audio_clip = AudioFileClip(audio_name)
@@ -177,7 +176,6 @@ def build_long_documentary_2k(sections, output_filename):
         sub = VideoFileClip(clip_name)
         needed_duration = audio_clip.duration + 0.5
         
-        # تكرار أو ضبط مدة الفيديو لتناسب طول الكلام
         if sub.duration < needed_duration:
             sub = sub.loop(duration=needed_duration)
         else:
@@ -269,7 +267,7 @@ def post_single_channel_to_buffer(channel_id, title, caption, video_url):
             "metadata": {
                 "youtube": {
                     "title": title,
-                    "categoryId": "15"
+                    "categoryId": "15" # تصنيف الحيوانات الأليفة
                 }
             }
         }
@@ -283,32 +281,45 @@ if __name__ == "__main__":
     day_of_week = now.weekday()  # 0: الاثنين, 2: الأربعاء, 4: الجمعة
     hour = now.hour
 
-    # شرط الفيديوهات الطويلة: 3 مرات في الأسبوع (الاثنين، الأربعاء، والجمعة) في وقت الذروة النهاري (13:00 UTC)
-    is_long_doc_day = (day_of_week in [0, 2, 4]) and (hour >= 11 and hour <= 15)
+    # شرط الفيديوهات الطويلة: 3 مرات في الأسبوع (الاثنين، الأربعاء، والجمعة) في وقت الذروة (13:00 UTC)
+    publish_long_doc = (day_of_week in [0, 2, 4]) and (hour >= 11 and hour <= 15)
     
-    print(f"Today is weekday {day_of_week}, Hour (UTC): {hour}")
-    print(f"Mode: {'LONG DOCUMENTARY 2K (16:9)' if is_long_doc_day else 'SHORTS 2K (9:16)'}")
+    print(f"Time (UTC): Weekday={day_of_week}, Hour={hour}")
+    print(f"Always Publishing: SHORTS 2K (9:16)")
+    if publish_long_doc:
+        print(f"Bonus Scheduled: Also Publishing LONG DOCUMENTARY 2K (16:9) today!")
+
+    # تجهيز مواضيع مختلفة لكل قناة
+    random_shorts = SHORTS_TOPICS.copy()
+    random.shuffle(random_shorts)
     
-    available_topics = LONG_DOC_TOPICS.copy() if is_long_doc_day else SHORTS_TOPICS.copy()
-    random.shuffle(available_topics)
+    random_longs = LONG_DOC_TOPICS.copy()
+    random.shuffle(random_longs)
 
     for index, pid in enumerate(PROFILE_IDS):
-        topic = available_topics[index % len(available_topics)]
         print(f"\n==========================================")
-        print(f"Channel {index+1} ({pid}) - {topic['title']}")
+        print(f"Processing Channel {index+1} ({pid})")
         print(f"==========================================")
         
-        output_name = f"video_ch_{index+1}_{int(time.time())}.mp4"
+        # 1. نشر فيديو Shorts 2K دائماً وبشكل أساسي
+        short_topic = random_shorts[index % len(random_shorts)]
+        print(f"Creating Short: {short_topic['title']}")
+        short_name = f"shorts_ch{index+1}_{int(time.time())}.mp4"
+        short_file = build_shorts_2k(short_topic["queries"], short_name)
         
-        if is_long_doc_day:
-            video_file = build_long_documentary_2k(topic["sections"], output_name)
-        else:
-            video_file = build_shorts_2k(topic["queries"], output_name)
-            
-        public_url = upload_video_to_github_release(video_file, f"ch{index+1}")
-        print(f"Public URL: {public_url}")
-        
-        post_single_channel_to_buffer(pid, topic["title"], topic["caption"], public_url)
+        short_url = upload_video_to_github_release(short_file, f"short_ch{index+1}")
+        post_single_channel_to_buffer(pid, short_topic["title"], short_topic["caption"], short_url)
         time.sleep(5)
         
-    print("\nWorkflow completed successfully!")
+        # 2. في أيام (الاثنين، الأربعاء، الجمعة) يتم نشر فيديو طويل 2K إضافي على نفس القناة
+        if publish_long_doc:
+            long_topic = random_longs[index % len(random_longs)]
+            print(f"Creating Long Documentary: {long_topic['title']}")
+            long_name = f"long_ch{index+1}_{int(time.time())}.mp4"
+            long_file = build_long_documentary_2k(long_topic["sections"], long_name)
+            
+            long_url = upload_video_to_github_release(long_file, f"long_ch{index+1}")
+            post_single_channel_to_buffer(pid, long_topic["title"], long_topic["caption"], long_url)
+            time.sleep(5)
+        
+    print("\nAll channels processed successfully with 2K content!")
