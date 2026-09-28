@@ -15,6 +15,7 @@ def generate_luma_video(prompt):
 
     print("Initiating Luma video generation via official SDK...")
     generation = client.generations.create(
+        model="ray-1",
         prompt=prompt,
         aspect_ratio="9:16",
         loop=False
