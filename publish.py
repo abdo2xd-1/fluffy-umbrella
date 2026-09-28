@@ -1,32 +1,49 @@
 import os
+import urllib.parse
 import requests
-import fal_client
+from moviepy.editor import ImageClip, concatenate_videoclips
 
-FAL_KEY = os.getenv("FAL_KEY", "").strip()
 BUFFER_TOKEN = os.getenv("BUFFER_ACCESS_TOKEN", "").strip()
 PROFILE_IDS = [pid.strip() for pid in os.getenv("BUFFER_PROFILE_IDS", "").split(",") if pid.strip()]
 
-def generate_video_with_fal(prompt):
-    if not FAL_KEY:
-        raise ValueError("FAL_KEY is missing or empty in secrets.")
+def download_image(prompt, filename):
+    encoded_prompt = urllib.parse.quote(prompt)
+    url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=720&height=1280&nologo=true"
+    res = requests.get(url, timeout=60)
+    if res.status_code == 200:
+        with open(filename, "wb") as f:
+            f.write(res.content)
+    else:
+        raise Exception(f"Failed to generate image: {res.status_code}")
 
-    print("Sending generation request to Fal.ai...")
+def create_video():
+    scenes = [
+        "cinematic 8k, cute tiny crying ginger kitten in heavy rain on dark street, emotional tearful eyes",
+        "cinematic 8k, shivering sad kitten sitting in water puddle, looking up begging for food",
+        "cinematic 8k, warm gentle human hands picking up the wet kitten, safe and cozy",
+        "cinematic 8k, happy clean ginger kitten purring in a warm blanket, happy ending"
+    ]
+    
+    clips = []
+    for i, prompt in enumerate(scenes):
+        img_name = f"scene_{i}.jpg"
+        print(f"Generating scene {i+1} via Pollinations (Free)...")
+        download_image(prompt, img_name)
+        clip = ImageClip(img_name).set_duration(3)
+        clips.append(clip)
+        
+    final_clip = concatenate_videoclips(clips, method="compose")
+    output_path = "shorts_video.mp4"
+    final_clip.write_videofile(output_path, fps=24)
+    return output_path
 
-    # استخدام نموذج LTX-Video السريع والسينمائي
-    result = fal_client.subscribe(
-        "fal-ai/ltx-video",
-        arguments={
-            "prompt": prompt,
-            "aspect_ratio": "9:16"
-        },
-        with_logs=True
-    )
-
-    video_url = result.get("video", {}).get("url")
-    if not video_url:
-        raise Exception(f"Failed to extract video url from result: {result}")
-
-    return video_url
+def upload_to_tmpfiles(video_path):
+    print("Uploading video to get public URL...")
+    with open(video_path, "rb") as f:
+        res = requests.post("https://tmpfiles.org/api/v1/upload", files={"file": f})
+    data = res.json()
+    url = data["data"]["url"]
+    return url.replace("https://tmpfiles.org/", "https://tmpfiles.org/dl/")
 
 def post_to_buffer_graphql(caption, video_url):
     endpoint = "https://api.buffer.com"
@@ -60,15 +77,11 @@ def post_to_buffer_graphql(caption, video_url):
             }
         }
         res = requests.post(endpoint, json={"query": query, "variables": variables}, headers=headers)
-        print(f"Publish result for channel {pid}: {res.status_code} - {res.text}")
+        print(f"Publish result for {pid}: {res.status_code} - {res.text}")
 
 if __name__ == "__main__":
-    prompt_text = "Cinematic slow motion, adorable tiny crying ginger kitten shivering under heavy rain in a dark alley, big glassy emotional tearful eyes, photorealistic 8k, hyper detailed fur"
-    caption_text = "Nobody would stop for him in the freezing rain 💔🥺 Wait till the end! #cat #kitten #sadstory #viral #shorts #ai"
-
-    print("Generating cinematic AI video via Fal.ai...")
-    video_url = generate_video_with_fal(prompt_text)
-    print(f"Video generated successfully: {video_url}")
-
-    print("Publishing to YouTube via Buffer GraphQL...")
-    post_to_buffer_graphql(caption_text, video_url)
+    caption = "A poor kitten abandoned in the rain gets a second chance 🥺❤️ #cat #kitten #story #shorts #viral"
+    video_file = create_video()
+    public_url = upload_to_tmpfiles(video_file)
+    print(f"Direct URL: {public_url}")
+    post_to_buffer_graphql(caption, public_url)
