@@ -3,17 +3,11 @@ import time
 import random
 import urllib.parse
 import requests
-import PIL.Image
-import PIL.ImageDraw
-import PIL.ImageFont
-
-if not hasattr(PIL.Image, 'ANTIALIAS'):
-    PIL.Image.ANTIALIAS = PIL.Image.Resampling.LANCZOS
 
 try:
-    from moviepy.editor import ImageClip, concatenate_videoclips
+    from moviepy.editor import VideoFileClip, concatenate_videoclips
 except (ImportError, ModuleNotFoundError):
-    from moviepy import ImageClip, concatenate_videoclips
+    from moviepy import VideoFileClip, concatenate_videoclips
 
 BUFFER_TOKEN = os.getenv("BUFFER_ACCESS_TOKEN", "").strip()
 PROFILE_IDS = [pid.strip() for pid in os.getenv("BUFFER_PROFILE_IDS", "").split(",") if pid.strip()]
@@ -21,115 +15,99 @@ GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "").strip()
 GITHUB_REPO = os.getenv("GITHUB_REPOSITORY", "").strip()
 PEXELS_KEY = os.getenv("PEXELS_API_KEY", "").strip()
 
-STORIES = [
+# مواضيع كوميدية ومضحكة للحيوانات
+FUNNY_TOPICS = [
     {
-        "title": "A shivering kitten found alone gets a second chance 🥺❤️ #shorts",
-        "caption": "Look at how much love and care can change a life! 🥺❤️ Wait till the end! #kitten #cat #rescue #heartwarming #shorts #viral",
-        "queries": [
-            ("kitten crying", "I found this poor shivering kitten all alone..."),
-            ("cat rescue", "I immediately picked him up and kept him warm."),
-            ("feeding kitten", "He was starving and drank his milk right away."),
-            ("happy kitten", "Now he is safe, healthy, and full of love ❤️")
-        ]
+        "title": "Try Not To Laugh - Funniest Cats & Dogs Ever! 😂🐶🐱 #shorts",
+        "caption": "Cats and dogs being absolute chaotic goofballs! 😂 Wait for the last clip! #funnyanimals #funnycats #funnydogs #pets #shorts #viral",
+        "queries": ["funny cat", "funny dog", "playful kitten", "silly dog playing"]
     },
     {
-        "title": "Helpless puppy left behind finds a loving family 🐶❤️ #shorts",
-        "caption": "Nobody stopped for him until today 😭❤️ Look at that happy smile! #puppy #dog #dogrescue #wholesome #shorts #viral",
-        "queries": [
-            ("sad puppy", "This little puppy was abandoned on the sidewalk..."),
-            ("dog rescue", "I couldn't just walk away and leave him there."),
-            ("feeding puppy", "We gave him a warm bath and a good meal."),
-            ("happy dog", "He finally found his forever home and family ❤️")
-        ]
+        "title": "When Cats Think Nobody Is Watching Them 😂🐾 #shorts",
+        "caption": "Orange cat energy is unmatched! 😭🤣 Drop a like for these silly pets! #catlovers #funnypets #catmemes #shorts #humor",
+        "queries": ["crazy cat jump", "silly cat", "kitten chasing", "clumsy cat"]
+    },
+    {
+        "title": "Guilty Dogs Caught Red-Handed! 🐶🤣 #shorts",
+        "caption": "Their reactions when they get busted doing nonsense! 😭😂 #funnydogs #doggo #petsfunny #shorts #viralvideos",
+        "queries": ["guilty dog", "excited dog run", "dog funny reaction", "clumsy dog"]
     }
 ]
 
-def add_top_subtitle(image_path, text):
-    img = PIL.Image.open(image_path).convert("RGBA")
-    w, h = img.size
-    
-    overlay = PIL.Image.new("RGBA", img.size, (0, 0, 0, 0))
-    draw = PIL.ImageDraw.Draw(overlay)
-    
-    banner_top = int(h * 0.08)
-    banner_bottom = int(h * 0.16)
-    draw.rectangle([0, banner_top, w, banner_bottom], fill=(0, 0, 0, 180))
-    
-    font_size = int(w * 0.045)
-    try:
-        font = PIL.ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", font_size)
-    except Exception:
-        font = PIL.ImageFont.load_default()
-        
-    bbox = draw.textbbox((0, 0), text, font=font)
-    text_w = bbox[2] - bbox[0]
-    text_h = bbox[3] - bbox[1]
-    text_x = (w - text_w) // 2
-    text_y = banner_top + (banner_bottom - banner_top - text_h) // 2
-    
-    draw.text((text_x, text_y), text, font=font, fill=(255, 255, 255, 255))
-    final_img = PIL.Image.alpha_composite(img, overlay).convert("RGB")
-    final_img.save(image_path, "JPEG", quality=95)
-
-def download_pexels_image(query, filename):
-    print(f"Searching Pexels for real photo: '{query}'...")
+def download_pexels_video(query, filename):
+    print(f"Searching Pexels for FUNNY video clip: '{query}'...")
     headers = {"Authorization": PEXELS_KEY} if PEXELS_KEY else {}
     
-    url = f"https://api.pexels.com/v1/search?query={urllib.parse.quote(query)}&orientation=portrait&per_page=15"
-    photos = []
+    url = f"https://api.pexels.com/videos/search?query={urllib.parse.quote(query)}&orientation=portrait&per_page=12"
+    videos = []
     
     try:
-        res = requests.get(url, headers=headers, timeout=20)
+        res = requests.get(url, headers=headers, timeout=25)
         if res.status_code == 200:
-            photos = res.json().get("photos", [])
+            videos = res.json().get("videos", [])
     except Exception as e:
-        print(f"Error connecting to Pexels: {e}")
+        print(f"Error connecting to Pexels Video API: {e}")
 
-    if not photos:
-        fallback_queries = ["cat", "dog", "kitten", "puppy"]
-        for fb in fallback_queries:
-            try:
-                res = requests.get(f"https://api.pexels.com/v1/search?query={fb}&orientation=portrait&per_page=15", headers=headers, timeout=20)
-                if res.status_code == 200 and res.json().get("photos"):
-                    photos = res.json()["photos"]
+    # بديل سريع في حال لم تتوفر مقاطع محددة
+    if not videos:
+        try:
+            res = requests.get("https://api.pexels.com/videos/search?query=funny pet&orientation=portrait&per_page=10", headers=headers, timeout=25)
+            if res.status_code == 200:
+                videos = res.json().get("videos", [])
+        except Exception:
+            pass
+
+    if videos:
+        vid = random.choice(videos)
+        # البحث عن ملف فيديو بجودة HD مناسبة (720x1280 أو قريبة منها)
+        chosen_file = None
+        for file in vid.get("video_files", []):
+            if file.get("file_type") == "video/mp4":
+                chosen_file = file.get("link")
+                if file.get("height", 0) >= 720:
                     break
-            except Exception:
-                pass
+                    
+        if not chosen_file and vid.get("video_files"):
+            chosen_file = vid["video_files"][0].get("link")
 
-    if photos:
-        photo = random.choice(photos)
-        img_url = photo["src"].get("portrait") or photo["src"].get("large2x") or photo["src"].get("large")
-        img_data = requests.get(img_url, timeout=60).content
-        with open(filename, "wb") as f:
-            f.write(img_data)
-        print(f"Successfully downloaded high-res photo from Pexels.")
-    else:
-        fallback_url = "https://images.pexels.com/photos/45201/kitty-cat-kitten-pet-45201.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=1280&w=720"
-        img_data = requests.get(fallback_url, timeout=60).content
-        with open(filename, "wb") as f:
-            f.write(img_data)
-        print("Used high-res fallback photo.")
+        if chosen_file:
+            print(f"Downloading MP4 clip from: {chosen_file[:40]}...")
+            vid_data = requests.get(chosen_file, timeout=60).content
+            with open(filename, "wb") as f:
+                f.write(vid_data)
+            print("Clip downloaded successfully.")
+            return
 
-def create_video(story_items):
+    # رابط مباشر احتياطي في أضيق الحدود
+    fallback_url = "https://assets.mixkit.co/videos/preview/mixkit-cat-looking-attentively-41004-large.mp4"
+    vid_data = requests.get(fallback_url, timeout=60).content
+    with open(filename, "wb") as f:
+        f.write(vid_data)
+    print("Used fallback funny pet clip.")
+
+def build_compilation(queries):
     clips = []
-    for i, (search_query, subtitle) in enumerate(story_items):
-        img_name = f"scene_{i}.jpg"
-        download_pexels_image(search_query, img_name)
-        add_top_subtitle(img_name, subtitle)
+    for i, q in enumerate(queries):
+        clip_name = f"clip_{i}.mp4"
+        download_pexels_video(q, clip_name)
         
-        clip = ImageClip(img_name)
-        clip = clip.with_duration(3.5) if hasattr(clip, "with_duration") else clip.set_duration(3.5)
-        clip = clip.resize(lambda t: 1 + 0.02 * t)
-        clips.append(clip)
+        # قص كل لقطة مضحكة لتكون بين 3 إلى 4 ثوانٍ
+        sub = VideoFileClip(clip_name)
+        duration = min(4.0, sub.duration)
+        sub = sub.subclip(0, duration)
         
-    print("Combining real scenes into final video...")
-    final_clip = concatenate_videoclips(clips, method="compose")
+        # ضبط أبعاد الفيديو على 720x1280 (Shorts)
+        sub = sub.resize((720, 1280))
+        clips.append(sub)
+        
+    print("Combining funny moments into final Shorts video...")
+    final = concatenate_videoclips(clips, method="compose")
     output_path = "shorts_video.mp4"
-    final_clip.write_videofile(output_path, fps=30, codec="libx264", preset="fast")
+    final.write_videofile(output_path, fps=30, codec="libx264", audio=False, preset="fast")
     return output_path
 
 def upload_video_to_github_release(video_path):
-    print("Uploading to GitHub CDN Release...")
+    print("Uploading to GitHub CDN...")
     tag_name = f"video-{int(time.time())}"
     headers = {
         "Authorization": f"Bearer {GITHUB_TOKEN}",
@@ -196,7 +174,7 @@ def post_to_buffer_graphql(title, caption, video_url):
                 "metadata": {
                     "youtube": {
                         "title": title,
-                        "categoryId": "15"
+                        "categoryId": "15" # تصنيف الحيوانات والحيوانات الأليفة
                     }
                 }
             }
@@ -206,9 +184,9 @@ def post_to_buffer_graphql(title, caption, video_url):
         print(f"Response: {res.text}")
 
 if __name__ == "__main__":
-    story = random.choice(STORIES)
-    print(f"Producing: {story['title']}")
-    video_file = create_video(story["queries"])
+    topic = random.choice(FUNNY_TOPICS)
+    print(f"Producing funny compilation: {topic['title']}")
+    video_file = build_compilation(topic["queries"])
     public_url = upload_video_to_github_release(video_file)
     print(f"Direct CDN URL: {public_url}")
-    post_to_buffer_graphql(story["title"], story["caption"], public_url)
+    post_to_buffer_graphql(topic["title"], topic["caption"], public_url)
