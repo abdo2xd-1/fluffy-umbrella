@@ -2,7 +2,6 @@ import os
 import urllib.parse
 import requests
 
-# استيراد متوافق تماماً مع جميع إصدارات MoviePy
 try:
     from moviepy.editor import ImageClip, concatenate_videoclips
 except (ImportError, ModuleNotFoundError):
@@ -35,7 +34,6 @@ def create_video():
         print(f"Generating scene {i+1} via Pollinations (Free)...")
         download_image(prompt, img_name)
         
-        # التوافق مع MoviePy v1 و v2 في تحديد مدة المشهد
         clip = ImageClip(img_name)
         clip = clip.with_duration(3) if hasattr(clip, "with_duration") else clip.set_duration(3)
         clips.append(clip)
@@ -64,9 +62,14 @@ def post_to_buffer_graphql(caption, video_url):
     query = """
     mutation CreatePost($input: CreatePostInput!) {
         createPost(input: $input) {
-            post {
-                id
-                status
+            ... on PostActionSuccess {
+                post {
+                    id
+                    status
+                }
+            }
+            ... on UserError {
+                message
             }
         }
     }
