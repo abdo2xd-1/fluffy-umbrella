@@ -5,7 +5,7 @@ import urllib.parse
 import requests
 import PIL.Image
 
-# حل مشكلة توافق Pillow الحديثة مع MoviePy القديمة
+# توافق مع Pillow و MoviePy
 if not hasattr(PIL.Image, 'ANTIALIAS'):
     PIL.Image.ANTIALIAS = PIL.Image.Resampling.LANCZOS
 
@@ -48,22 +48,34 @@ def download_image(prompt, filename):
         "highly detailed fur, octane render, photorealistic, sharp focus, masterpiece"
     )
     encoded_prompt = urllib.parse.quote(prompt_details)
-    seed = random.randint(1000, 999999)
-    url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=1080&height=1920&model=flux&nologo=true&seed={seed}"
-    
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-    res = requests.get(url, headers=headers, timeout=120)
-    if res.status_code == 200:
-        with open(filename, "wb") as f:
-            f.write(res.content)
-    else:
-        raise Exception(f"Failed to generate high-quality image: {res.status_code}")
+    
+    # محاولة التوليد بأبعاد 720x1280 المستقرة مع إعادة المحاولة
+    models_to_try = ["flux", "turbo", "default"]
+    for model in models_to_try:
+        seed = random.randint(1000, 999999)
+        url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=720&height=1280&model={model}&nologo=true&seed={seed}"
+        try:
+            print(f"Requesting image with model: {model}...")
+            res = requests.get(url, headers=headers, timeout=60)
+            if res.status_code == 200 and len(res.content) > 5000:
+                with open(filename, "wb") as f:
+                    f.write(res.content)
+                print(f"Saved {filename} successfully using {model}.")
+                return
+            else:
+                print(f"Model {model} returned status {res.status_code}, trying next...")
+        except Exception as e:
+            print(f"Model {model} request failed: {e}")
+        time.sleep(2)
+        
+    raise Exception("Failed to generate image across all models.")
 
 def create_video(scenes):
     clips = []
     for i, prompt in enumerate(scenes):
         img_name = f"scene_{i}.jpg"
-        print(f"Generating scene {i+1} with Flux high-fidelity model...")
+        print(f"Generating scene {i+1}...")
         download_image(prompt, img_name)
         
         clip = ImageClip(img_name)
