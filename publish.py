@@ -1,7 +1,12 @@
 import os
 import urllib.parse
 import requests
-from moviepy.editor import ImageClip, concatenate_videoclips
+
+# استيراد متوافق تماماً مع جميع إصدارات MoviePy
+try:
+    from moviepy.editor import ImageClip, concatenate_videoclips
+except (ImportError, ModuleNotFoundError):
+    from moviepy import ImageClip, concatenate_videoclips
 
 BUFFER_TOKEN = os.getenv("BUFFER_ACCESS_TOKEN", "").strip()
 PROFILE_IDS = [pid.strip() for pid in os.getenv("BUFFER_PROFILE_IDS", "").split(",") if pid.strip()]
@@ -29,12 +34,16 @@ def create_video():
         img_name = f"scene_{i}.jpg"
         print(f"Generating scene {i+1} via Pollinations (Free)...")
         download_image(prompt, img_name)
-        clip = ImageClip(img_name).set_duration(3)
+        
+        # التوافق مع MoviePy v1 و v2 في تحديد مدة المشهد
+        clip = ImageClip(img_name)
+        clip = clip.with_duration(3) if hasattr(clip, "with_duration") else clip.set_duration(3)
         clips.append(clip)
         
+    print("Combining scenes into final video...")
     final_clip = concatenate_videoclips(clips, method="compose")
     output_path = "shorts_video.mp4"
-    final_clip.write_videofile(output_path, fps=24)
+    final_clip.write_videofile(output_path, fps=24, codec="libx264")
     return output_path
 
 def upload_to_tmpfiles(video_path):
@@ -77,11 +86,17 @@ def post_to_buffer_graphql(caption, video_url):
             }
         }
         res = requests.post(endpoint, json={"query": query, "variables": variables}, headers=headers)
-        print(f"Publish result for {pid}: {res.status_code} - {res.text}")
+        print(f"Publish result for channel {pid}: {res.status_code} - {res.text}")
 
 if __name__ == "__main__":
     caption = "A poor kitten abandoned in the rain gets a second chance 🥺❤️ #cat #kitten #story #shorts #viral"
+    
+    print("Creating AI Video...")
     video_file = create_video()
+    
+    print("Generating public download link...")
     public_url = upload_to_tmpfiles(video_file)
     print(f"Direct URL: {public_url}")
+    
+    print("Posting to social channels via Buffer GraphQL...")
     post_to_buffer_graphql(caption, public_url)
