@@ -3,6 +3,11 @@ import time
 import random
 import urllib.parse
 import requests
+import PIL.Image
+
+# حل مشكلة MoviePy مع إصدارات Pillow الحديثة
+if not hasattr(PIL.Image, 'ANTIALIAS'):
+    PIL.Image.ANTIALIAS = PIL.Image.Resampling.LANCZOS
 
 try:
     from moviepy.editor import VideoFileClip, concatenate_videoclips
@@ -15,7 +20,6 @@ GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "").strip()
 GITHUB_REPO = os.getenv("GITHUB_REPOSITORY", "").strip()
 PEXELS_KEY = os.getenv("PEXELS_API_KEY", "").strip()
 
-# مواضيع كوميدية ومضحكة للحيوانات
 FUNNY_TOPICS = [
     {
         "title": "Try Not To Laugh - Funniest Cats & Dogs Ever! 😂🐶🐱 #shorts",
@@ -48,7 +52,6 @@ def download_pexels_video(query, filename):
     except Exception as e:
         print(f"Error connecting to Pexels Video API: {e}")
 
-    # بديل سريع في حال لم تتوفر مقاطع محددة
     if not videos:
         try:
             res = requests.get("https://api.pexels.com/videos/search?query=funny pet&orientation=portrait&per_page=10", headers=headers, timeout=25)
@@ -59,7 +62,6 @@ def download_pexels_video(query, filename):
 
     if videos:
         vid = random.choice(videos)
-        # البحث عن ملف فيديو بجودة HD مناسبة (720x1280 أو قريبة منها)
         chosen_file = None
         for file in vid.get("video_files", []):
             if file.get("file_type") == "video/mp4":
@@ -78,7 +80,6 @@ def download_pexels_video(query, filename):
             print("Clip downloaded successfully.")
             return
 
-    # رابط مباشر احتياطي في أضيق الحدود
     fallback_url = "https://assets.mixkit.co/videos/preview/mixkit-cat-looking-attentively-41004-large.mp4"
     vid_data = requests.get(fallback_url, timeout=60).content
     with open(filename, "wb") as f:
@@ -91,13 +92,15 @@ def build_compilation(queries):
         clip_name = f"clip_{i}.mp4"
         download_pexels_video(q, clip_name)
         
-        # قص كل لقطة مضحكة لتكون بين 3 إلى 4 ثوانٍ
         sub = VideoFileClip(clip_name)
         duration = min(4.0, sub.duration)
         sub = sub.subclip(0, duration)
         
-        # ضبط أبعاد الفيديو على 720x1280 (Shorts)
-        sub = sub.resize((720, 1280))
+        # تغيير الأبعاد مع الحفاظ على التوافق التام
+        sub = sub.resize(height=1280)
+        if sub.w != 720:
+            sub = sub.resize((720, 1280))
+            
         clips.append(sub)
         
     print("Combining funny moments into final Shorts video...")
@@ -174,7 +177,7 @@ def post_to_buffer_graphql(title, caption, video_url):
                 "metadata": {
                     "youtube": {
                         "title": title,
-                        "categoryId": "15" # تصنيف الحيوانات والحيوانات الأليفة
+                        "categoryId": "15"
                     }
                 }
             }
