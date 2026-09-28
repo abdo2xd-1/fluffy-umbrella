@@ -9,8 +9,6 @@ except (ImportError, ModuleNotFoundError):
 
 BUFFER_TOKEN = os.getenv("BUFFER_ACCESS_TOKEN", "").strip()
 PROFILE_IDS = [pid.strip() for pid in os.getenv("BUFFER_PROFILE_IDS", "").split(",") if pid.strip()]
-GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "").strip()
-GITHUB_REPO = os.getenv("GITHUB_REPOSITORY", "").strip()
 
 def download_image(prompt, filename):
     encoded_prompt = urllib.parse.quote(prompt)
@@ -46,24 +44,24 @@ def create_video():
     final_clip.write_videofile(output_path, fps=24, codec="libx264")
     return output_path
 
-def upload_to_reliable_cdn(video_path):
-    print("Uploading video via direct raw storage...")
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
-    }
+def upload_video(video_path):
+    print("Uploading video via reliable public host...")
+    # محاولة الرفع عبر 0x0.st
+    try:
+        with open(video_path, "rb") as f:
+            res = requests.post("https://0x0.st", files={"file": f}, timeout=120)
+            if res.status_code == 200 and res.text.strip().startswith("http"):
+                return res.text.strip()
+    except Exception as e:
+        print(f"0x0.st upload failed ({e}), trying fallback...")
+
+    # حل بديل مؤكد عبر file.io
     with open(video_path, "rb") as f:
-        # استخدام خادم oshi.at المفتوح والمباشر بدون أي صفحة وسيطة
-        res = requests.put("https://oshi.at/shorts_video.mp4", data=f, headers=headers, timeout=120)
-    
-    # استخراج الرابط المباشر
-    for line in res.text.splitlines():
-        if "DL:" in line:
-            return line.replace("DL:", "").strip()
-    
-    # حل بديل مباشر عبر File.io
-    with open(video_path, "rb") as f:
-        fallback = requests.post("https://file.io", files={"file": f}, timeout=120)
-        return fallback.json()["link"]
+        res = requests.post("https://file.io", files={"file": f}, timeout=120)
+        data = res.json()
+        if data.get("success"):
+            return data["link"]
+        raise Exception(f"Upload failed: {res.text}")
 
 def post_to_buffer_graphql(title, caption, video_url):
     endpoint = "https://api.buffer.com"
@@ -122,7 +120,7 @@ if __name__ == "__main__":
     video_file = create_video()
     
     print("Uploading video...")
-    public_url = upload_to_reliable_cdn(video_file)
+    public_url = upload_video(video_file)
     print(f"Direct CDN URL: {public_url}")
     
     print("Posting to YouTube via Buffer GraphQL...")
