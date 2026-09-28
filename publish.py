@@ -3,7 +3,10 @@ import time
 import random
 import urllib.parse
 import requests
+import numpy as np
 import PIL.Image
+import PIL.ImageDraw
+import PIL.ImageFont
 
 if not hasattr(PIL.Image, 'ANTIALIAS'):
     PIL.Image.ANTIALIAS = PIL.Image.Resampling.LANCZOS
@@ -20,71 +23,134 @@ GITHUB_REPO = os.getenv("GITHUB_REPOSITORY", "").strip()
 
 STORIES = [
     {
-        "title": "I rescued a little bear cub that was attacked by wolves 🐺🐻 #shorts",
-        "caption": "While driving through the forest, I saw a tiny cub in danger... Now he feels safe with me ❤️ #animalrescue #wildlife #bear #heartwarming #shorts #viral",
+        "title": "I rescued a little bear cub that was attacked in the woods 🐻❤️ #shorts",
+        "caption": "I found him crying and helpless... Now he feels safe with me ❤️ #animalrescue #wildlife #bear #wholesome #shorts #viral",
         "scenes": [
-            "POV real iPhone camera shot, first-person view, human hand reaching out to touch a tiny shivering baby bear cub in the forest grass, hyperrealistic natural lighting, amateur video frame",
-            "POV mobile camera footage, a cute fluffy brown bear cub sitting in the passenger seat of a car, human hand gently stroking its head, warm natural sunlight",
-            "first-person perspective phone recording, little bear cub happily drinking warm milk from a bowl on the floor, authentic home video",
-            "POV smartphone video frame, human hand petting a playful healthy bear cub lying on a cozy rug next to a fireplace, cozy mood"
+            {
+                "prompt": "POV authentic iPhone photo, a human hand gently touching the head of a tiny real baby brown bear cub sitting in the forest dirt, wet realistic fur, big black shiny wet eyes, raw candid smartphone snapshot, unedited real life",
+                "text": "I saw this tiny cub crying all alone in the woods..."
+            },
+            {
+                "prompt": "POV authentic smartphone footage, human hand holding a cute real small bear cub wrapped inside a dirty warm winter jacket inside a car seat, real documentary photo, natural lighting",
+                "text": "He was shivering, so I rushed him to my car."
+            },
+            {
+                "prompt": "first person view photo, human hand feeding milk from a baby bottle to a real tiny brown bear cub, messy drinking, realistic room lighting, candid real photo",
+                "text": "He was so hungry and started drinking immediately."
+            },
+            {
+                "prompt": "POV handheld phone camera photo, a happy healthy baby bear cub resting on a soft blanket, looking right at the camera, safe and peaceful, real candid home photo",
+                "text": "Now he is safe and never leaves my side ❤️"
+            }
         ]
     },
     {
-        "title": "I found a tiny freezing kangaroo joey left behind 🦘❤️ #shorts",
-        "caption": "He was so small and scared. Look at him now! 🥹❤️ #animalrescue #kangaroo #wildlife #wholesome #shorts #viral",
+        "title": "A helpless golden puppy left behind in the heavy rain 🐶💔 #shorts",
+        "caption": "He was soaked and crying... Look at his happy ending! 🥺❤️ #dog #puppy #rescue #emotional #shorts #viral",
         "scenes": [
-            "POV iPhone camera shot, two human hands gently holding a very tiny adorable baby kangaroo joey outdoors, looking directly into the camera lens, real smartphone video frame",
-            "first-person view amateur mobile recording, baby kangaroo wrapped inside a warm green towel pouch, big glassy curious eyes, natural soft outdoor lighting",
-            "POV smartphone frame, feeding a tiny kangaroo joey with a small milk bottle, human fingers holding the bottle, authentic documentary style",
-            "POV phone camera footage, healthy smiling baby kangaroo hopping towards the camera indoors, cozy living room background, heartwarming"
+            {
+                "prompt": "POV authentic candid mobile photo, human hand reaching down to a tiny shivering wet golden retriever puppy trapped in a cold alley puddle, crying teary eyes, extremely realistic wet fur, raw real life photography",
+                "text": "I found this poor puppy crying in the cold rain..."
+            },
+            {
+                "prompt": "POV first person smartphone photo, human arms holding a soaking wet puppy wrapped inside a thick towel inside a warm car, realistic relief, real candid shot",
+                "text": "I immediately wrapped him up to keep him warm."
+            },
+            {
+                "prompt": "POV candid home photo, tiny clean golden puppy eating warm food from a small bowl on the kitchen floor, wagging tail, realistic natural indoor lighting",
+                "text": "After a warm bath, he had his first good meal."
+            },
+            {
+                "prompt": "POV phone snapshot, fluffy cute golden puppy happily sleeping on the sofa next to a human hand, peaceful smiling face, warm sunlight, authentic real photo",
+                "text": "He finally found his forever home ❤️"
+            }
         ]
     }
 ]
 
+def add_top_subtitle(image_path, text):
+    """إضافة شريط النص التوضيحي أعلى الصورة تماماً مثل قنوات Shorts الاحترافية"""
+    img = PIL.Image.open(image_path).convert("RGBA")
+    w, h = img.size
+    
+    # إنشاء طبقة شفافة للنص
+    overlay = PIL.Image.new("RGBA", img.size, (0, 0, 0, 0))
+    draw = PIL.ImageDraw.Draw(overlay)
+    
+    # شريط داكن شبه شفاف في الجزء العلوي
+    banner_top = int(h * 0.08)
+    banner_bottom = int(h * 0.16)
+    draw.rectangle([0, banner_top, w, banner_bottom], fill=(0, 0, 0, 160))
+    
+    # اختيار حجم الخط
+    font_size = int(w * 0.045)
+    try:
+        font = PIL.ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", font_size)
+    except Exception:
+        font = PIL.ImageFont.load_default()
+        
+    # توسيط النص
+    bbox = draw.textbbox((0, 0), text, font=font)
+    text_w = bbox[2] - bbox[0]
+    text_h = bbox[3] - bbox[1]
+    text_x = (w - text_w) // 2
+    text_y = banner_top + (banner_bottom - banner_top - text_h) // 2
+    
+    # رسم النص باللون الأبيض
+    draw.text((text_x, text_y), text, font=font, fill=(255, 255, 255, 255))
+    
+    # دمج وحفظ الصورة كـ RGB
+    final_img = PIL.Image.alpha_composite(img, overlay).convert("RGB")
+    final_img.save(image_path, "JPEG", quality=95)
+
 def download_image(prompt, filename):
-    full_prompt = (
-        f"{prompt}, real smartphone camera photo, candid handheld shot, natural lighting, "
-        "hyperrealistic, highly detailed, unedited documentary style"
+    # تعزيز الوصف لمنع أي مظهر كرتوني أو 3D أو AI art
+    real_prompt = (
+        f"{prompt}, raw photo, candid smartphone camera, 35mm lens, natural imperfect daylight, "
+        "grain, real life, hyperrealistic, no 3d render, no anime, no cartoon, no digital art"
     )
-    encoded = urllib.parse.quote(full_prompt)
+    encoded = urllib.parse.quote(real_prompt)
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
 
-    # تجربة الموديلات المستقرة بالترتيب لضمان عدم السقوط
-    models = ["turbo", "default"]
-    
-    for attempt in range(5):
-        seed = random.randint(1000, 999999)
-        model = models[attempt % len(models)]
-        # نستخدم دقة 720x1280 وهي نسبة 9:16 المعتمدة لفيديوهات Shorts
-        url = f"https://image.pollinations.ai/prompt/{encoded}?width=720&height=1280&model={model}&nologo=true&seed={seed}"
+    # استخدام سيرفر التوليد الواقعي مع seed عشوائي
+    for attempt in range(4):
+        seed = random.randint(100000, 9999999)
+        url = f"https://image.pollinations.ai/prompt/{encoded}?width=720&height=1280&model=flux-realism&nologo=true&seed={seed}"
         
         try:
-            print(f"Requesting image (attempt {attempt+1}, model={model})...")
-            res = requests.get(url, headers=headers, timeout=45)
-            if res.status_code == 200 and len(res.content) > 10000:
+            print(f"Requesting realistic scene (attempt {attempt+1})...")
+            res = requests.get(url, headers=headers, timeout=60)
+            if res.status_code == 200 and len(res.content) > 15000:
                 with open(filename, "wb") as f:
                     f.write(res.content)
-                print(f"Successfully saved {filename}")
                 return
-            else:
-                print(f"Status code {res.status_code}, retrying...")
+            # fallback لموديل flux الأساسي إذا كان realism مشغولاً
+            elif res.status_code != 200:
+                alt_url = f"https://image.pollinations.ai/prompt/{encoded}?width=720&height=1280&model=flux&nologo=true&seed={seed}"
+                alt_res = requests.get(alt_url, headers=headers, timeout=60)
+                if alt_res.status_code == 200 and len(alt_res.content) > 15000:
+                    with open(filename, "wb") as f:
+                        f.write(alt_res.content)
+                    return
         except Exception as e:
-            print(f"Connection issue: {e}, retrying...")
-            
+            print(f"Error downloading: {e}")
         time.sleep(3)
         
-    raise Exception(f"Failed to generate realistic POV image after retries")
+    raise Exception("Failed to generate image")
 
 def create_video(scenes):
     clips = []
-    for i, prompt in enumerate(scenes):
+    for i, item in enumerate(scenes):
         img_name = f"scene_{i}.jpg"
-        print(f"Generating POV scene {i+1}...")
-        download_image(prompt, img_name)
+        print(f"Generating scene {i+1}...")
+        download_image(item["prompt"], img_name)
+        
+        # إضافة النص التوضيحي أعلى المشهد
+        add_top_subtitle(img_name, item["text"])
         
         clip = ImageClip(img_name)
         clip = clip.with_duration(3.5) if hasattr(clip, "with_duration") else clip.set_duration(3.5)
-        # زوم ديناميكي يحاكي حركة كاميرا الموبايل الحقيقية
+        # حركة زوم بطيئة جداً لإعطاء إيحاء الفيديو
         clip = clip.resize(lambda t: 1 + 0.02 * t)
         clips.append(clip)
         
