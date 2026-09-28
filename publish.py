@@ -5,7 +5,7 @@ import urllib.parse
 import requests
 import PIL.Image
 
-# حل مشكلة MoviePy مع إصدارات Pillow الحديثة
+# حل مشكلة توافق Pillow مع MoviePy
 if not hasattr(PIL.Image, 'ANTIALIAS'):
     PIL.Image.ANTIALIAS = PIL.Image.Resampling.LANCZOS
 
@@ -20,29 +20,40 @@ GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "").strip()
 GITHUB_REPO = os.getenv("GITHUB_REPOSITORY", "").strip()
 PEXELS_KEY = os.getenv("PEXELS_API_KEY", "").strip()
 
+# مكتبة أفكار متنوعة لضمان محتوى مستقل ومختلف لكل قناة
 FUNNY_TOPICS = [
     {
-        "title": "Try Not To Laugh - Funniest Cats & Dogs Ever! 😂🐶🐱 #shorts",
-        "caption": "Cats and dogs being absolute chaotic goofballs! 😂 Wait for the last clip! #funnyanimals #funnycats #funnydogs #pets #shorts #viral",
-        "queries": ["funny cat", "funny dog", "playful kitten", "silly dog playing"]
+        "title": "Funniest Cats Being Absolute Chaos Goofballs! 😂🐱 #shorts",
+        "caption": "Cats doing the weirdest things when they think no one is watching 😭🤣 #funnycats #catmemes #catlovers #funnypets #shorts #viral",
+        "queries": ["crazy cat jumping", "funny cat face", "kitten playing funny", "silly cat running"]
     },
     {
-        "title": "When Cats Think Nobody Is Watching Them 😂🐾 #shorts",
-        "caption": "Orange cat energy is unmatched! 😭🤣 Drop a like for these silly pets! #catlovers #funnypets #catmemes #shorts #humor",
-        "queries": ["crazy cat jump", "silly cat", "kitten chasing", "clumsy cat"]
+        "title": "Dogs Being 100% Clumsy & Silly Goobers! 🐶🤣 #shorts",
+        "caption": "Not a single thought behind those cute eyes 😂🐾 Drop a like for these silly dogs! #funnydogs #doggo #dogmemes #petlover #shorts #viral",
+        "queries": ["silly dog playing", "clumsy puppy walking", "excited dog jumping", "funny dog running"]
     },
     {
-        "title": "Guilty Dogs Caught Red-Handed! 🐶🤣 #shorts",
-        "caption": "Their reactions when they get busted doing nonsense! 😭😂 #funnydogs #doggo #petsfunny #shorts #viralvideos",
-        "queries": ["guilty dog", "excited dog run", "dog funny reaction", "clumsy dog"]
+        "title": "Try Not To Laugh: Crazy Pets Caught Red-Handed! 🐾😂 #shorts",
+        "caption": "Pets acting like complete clowns caught in 4K 😭 Wait for the last clip! #funnyanimals #pets #humor #wholesome #shorts #viralvideo",
+        "queries": ["funny pet playing", "kitten chasing tail", "puppy playing toy", "cute funny animal"]
+    },
+    {
+        "title": "When The Orange Cat Braincell Disappears Completely 🐱😭 #shorts",
+        "caption": "Orange cat energy is undefeated! Watch till the end 🤣 #orangecat #catvideos #funnycats #petsfunny #shorts",
+        "queries": ["orange cat funny", "cat slipping", "kitten jumping funny", "cat playing crazy"]
+    },
+    {
+        "title": "Golden Retrievers Being The Biggest Clowns Ever 🦮😂 #shorts",
+        "caption": "Pure golden retriever chaos and happiness! 🥺❤️ #goldenretriever #funnydogvideos #doglovers #shorts #viral",
+        "queries": ["golden retriever playing", "puppy falling playfully", "happy dog run", "dog chasing ball"]
     }
 ]
 
 def download_pexels_video(query, filename):
-    print(f"Searching Pexels for FUNNY video clip: '{query}'...")
+    print(f"Searching Pexels for: '{query}'...")
     headers = {"Authorization": PEXELS_KEY} if PEXELS_KEY else {}
     
-    url = f"https://api.pexels.com/videos/search?query={urllib.parse.quote(query)}&orientation=portrait&per_page=12"
+    url = f"https://api.pexels.com/videos/search?query={urllib.parse.quote(query)}&orientation=portrait&per_page=15"
     videos = []
     
     try:
@@ -50,17 +61,18 @@ def download_pexels_video(query, filename):
         if res.status_code == 200:
             videos = res.json().get("videos", [])
     except Exception as e:
-        print(f"Error connecting to Pexels Video API: {e}")
+        print(f"Pexels API issue: {e}")
 
     if not videos:
         try:
-            res = requests.get("https://api.pexels.com/videos/search?query=funny pet&orientation=portrait&per_page=10", headers=headers, timeout=25)
+            res = requests.get("https://api.pexels.com/videos/search?query=funny animal&orientation=portrait&per_page=10", headers=headers, timeout=25)
             if res.status_code == 200:
                 videos = res.json().get("videos", [])
         except Exception:
             pass
 
     if videos:
+        # اختيار مقطع عشوائي من النتائج لضمان التنوع
         vid = random.choice(videos)
         chosen_file = None
         for file in vid.get("video_files", []):
@@ -73,45 +85,43 @@ def download_pexels_video(query, filename):
             chosen_file = vid["video_files"][0].get("link")
 
         if chosen_file:
-            print(f"Downloading MP4 clip from: {chosen_file[:40]}...")
+            print(f"Downloading clip to {filename}...")
             vid_data = requests.get(chosen_file, timeout=60).content
             with open(filename, "wb") as f:
                 f.write(vid_data)
-            print("Clip downloaded successfully.")
             return
 
+    # رابط احتياطي آمن
     fallback_url = "https://assets.mixkit.co/videos/preview/mixkit-cat-looking-attentively-41004-large.mp4"
     vid_data = requests.get(fallback_url, timeout=60).content
     with open(filename, "wb") as f:
         f.write(vid_data)
-    print("Used fallback funny pet clip.")
 
-def build_compilation(queries):
+def build_compilation(queries, output_filename):
     clips = []
     for i, q in enumerate(queries):
-        clip_name = f"clip_{i}.mp4"
+        clip_name = f"temp_{i}_{int(time.time())}.mp4"
         download_pexels_video(q, clip_name)
         
-        sub = VideoFileClip(clip_name)
-        duration = min(4.0, sub.duration)
-        sub = sub.subclip(0, duration)
+        try:
+            sub = VideoFileClip(clip_name)
+            duration = min(3.5, sub.duration)
+            sub = sub.subclip(0, duration)
+            sub = sub.resize(height=1280)
+            if sub.w != 720:
+                sub = sub.resize((720, 1280))
+            clips.append(sub)
+        except Exception as e:
+            print(f"Warning processing clip {clip_name}: {e}")
         
-        # تغيير الأبعاد مع الحفاظ على التوافق التام
-        sub = sub.resize(height=1280)
-        if sub.w != 720:
-            sub = sub.resize((720, 1280))
-            
-        clips.append(sub)
-        
-    print("Combining funny moments into final Shorts video...")
+    print(f"Stitching clips into {output_filename}...")
     final = concatenate_videoclips(clips, method="compose")
-    output_path = "shorts_video.mp4"
-    final.write_videofile(output_path, fps=30, codec="libx264", audio=False, preset="fast")
-    return output_path
+    final.write_videofile(output_filename, fps=30, codec="libx264", audio=False, preset="fast")
+    return output_filename
 
-def upload_video_to_github_release(video_path):
-    print("Uploading to GitHub CDN...")
-    tag_name = f"video-{int(time.time())}"
+def upload_video_to_github_release(video_path, asset_label):
+    print(f"Uploading {asset_label} to GitHub CDN Release...")
+    tag_name = f"rel-{asset_label}-{int(time.time())}"
     headers = {
         "Authorization": f"Bearer {GITHUB_TOKEN}",
         "Accept": "application/vnd.github.v3+json"
@@ -120,14 +130,15 @@ def upload_video_to_github_release(video_path):
     create_url = f"https://api.github.com/repos/{GITHUB_REPO}/releases"
     release_data = {
         "tag_name": tag_name,
-        "name": f"Video Release {tag_name}",
+        "name": f"Release {tag_name}",
         "draft": False,
         "prerelease": False
     }
     r = requests.post(create_url, json=release_data, headers=headers)
     upload_url_template = r.json()["upload_url"].split("{")[0]
     
-    upload_url = f"{upload_url_template}?name=shorts_video.mp4"
+    clean_name = os.path.basename(video_path)
+    upload_url = f"{upload_url_template}?name={clean_name}"
     upload_headers = {
         "Authorization": f"Bearer {GITHUB_TOKEN}",
         "Content-Type": "video/mp4"
@@ -137,7 +148,7 @@ def upload_video_to_github_release(video_path):
         
     return up_res.json()["browser_download_url"]
 
-def post_to_buffer_graphql(title, caption, video_url):
+def post_single_channel_to_buffer(channel_id, title, caption, video_url):
     endpoint = "https://api.buffer.com"
     headers = {
         "Authorization": f"Bearer {BUFFER_TOKEN}",
@@ -160,36 +171,54 @@ def post_to_buffer_graphql(title, caption, video_url):
     }
     """
 
-    for pid in PROFILE_IDS:
-        variables = {
-            "input": {
-                "channelId": pid,
-                "text": caption,
-                "schedulingType": "automatic",
-                "mode": "shareNow",
-                "assets": [
-                    {
-                        "video": {
-                            "url": video_url
-                        }
+    variables = {
+        "input": {
+            "channelId": channel_id,
+            "text": caption,
+            "schedulingType": "automatic",
+            "mode": "shareNow",
+            "assets": [
+                {
+                    "video": {
+                        "url": video_url
                     }
-                ],
-                "metadata": {
-                    "youtube": {
-                        "title": title,
-                        "categoryId": "15"
-                    }
+                }
+            ],
+            "metadata": {
+                "youtube": {
+                    "title": title,
+                    "categoryId": "15" # تصنيف الحيوانات الأليفة
                 }
             }
         }
-        res = requests.post(endpoint, json={"query": query, "variables": variables}, headers=headers)
-        print(f"Publish result for {pid}: {res.status_code}")
-        print(f"Response: {res.text}")
+    }
+    res = requests.post(endpoint, json={"query": query, "variables": variables}, headers=headers)
+    print(f"Publish result for {channel_id}: {res.status_code}")
+    print(f"Response: {res.text}")
 
 if __name__ == "__main__":
-    topic = random.choice(FUNNY_TOPICS)
-    print(f"Producing funny compilation: {topic['title']}")
-    video_file = build_compilation(topic["queries"])
-    public_url = upload_video_to_github_release(video_file)
-    print(f"Direct CDN URL: {public_url}")
-    post_to_buffer_graphql(topic["title"], topic["caption"], public_url)
+    print(f"Found {len(PROFILE_IDS)} connected channels.")
+    
+    # خلط المواضيع لضمان عدم تكرار نفس الفكرة للقنوات في نفس اليوم
+    available_topics = FUNNY_TOPICS.copy()
+    random.shuffle(available_topics)
+
+    for index, pid in enumerate(PROFILE_IDS):
+        topic = available_topics[index % len(available_topics)]
+        print(f"\n==========================================")
+        print(f"Generating unique video for Channel {index+1} ({pid})")
+        print(f"Topic: {topic['title']}")
+        print(f"==========================================")
+        
+        output_name = f"shorts_channel_{index+1}.mp4"
+        video_file = build_compilation(topic["queries"], output_name)
+        
+        # رفع الفيديو برابط CDN خاص به
+        public_url = upload_video_to_github_release(video_file, f"ch{index+1}")
+        print(f"Public URL: {public_url}")
+        
+        # النشر على هذه القناة فقط
+        post_single_channel_to_buffer(pid, topic["title"], topic["caption"], public_url)
+        time.sleep(5)
+        
+    print("\nAll channels updated with unique custom videos successfully!")
