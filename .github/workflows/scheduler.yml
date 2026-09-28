@@ -3,7 +3,7 @@ name: Auto Generate and Publish AI Shorts
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 15 * * *'
+    - cron: '0 12,18 * * *'
 
 permissions:
   contents: write
