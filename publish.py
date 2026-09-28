@@ -1,9 +1,7 @@
 import os
 import time
 import random
-import urllib.parse
 import requests
-import numpy as np
 import PIL.Image
 import PIL.ImageDraw
 import PIL.ImageFont
@@ -20,141 +18,109 @@ BUFFER_TOKEN = os.getenv("BUFFER_ACCESS_TOKEN", "").strip()
 PROFILE_IDS = [pid.strip() for pid in os.getenv("BUFFER_PROFILE_IDS", "").split(",") if pid.strip()]
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "").strip()
 GITHUB_REPO = os.getenv("GITHUB_REPOSITORY", "").strip()
+PEXELS_KEY = os.getenv("PEXELS_API_KEY", "").strip()
 
 STORIES = [
     {
-        "title": "I rescued a little bear cub that was attacked in the woods 🐻❤️ #shorts",
-        "caption": "I found him crying and helpless... Now he feels safe with me ❤️ #animalrescue #wildlife #bear #wholesome #shorts #viral",
-        "scenes": [
-            {
-                "prompt": "POV authentic iPhone photo, a human hand gently touching the head of a tiny real baby brown bear cub sitting in the forest dirt, wet realistic fur, big black shiny wet eyes, raw candid smartphone snapshot, unedited real life",
-                "text": "I saw this tiny cub crying all alone in the woods..."
-            },
-            {
-                "prompt": "POV authentic smartphone footage, human hand holding a cute real small bear cub wrapped inside a dirty warm winter jacket inside a car seat, real documentary photo, natural lighting",
-                "text": "He was shivering, so I rushed him to my car."
-            },
-            {
-                "prompt": "first person view photo, human hand feeding milk from a baby bottle to a real tiny brown bear cub, messy drinking, realistic room lighting, candid real photo",
-                "text": "He was so hungry and started drinking immediately."
-            },
-            {
-                "prompt": "POV handheld phone camera photo, a happy healthy baby bear cub resting on a soft blanket, looking right at the camera, safe and peaceful, real candid home photo",
-                "text": "Now he is safe and never leaves my side ❤️"
-            }
+        "title": "A shivering kitten found alone in the cold gets a second chance 🥺❤️ #shorts",
+        "caption": "Look at how much love and care can change a life! 🥺❤️ Wait till the end! #kitten #cat #rescue #heartwarming #shorts #viral",
+        "queries": [
+            ("sad wet kitten", "I found this poor shivering kitten all alone..."),
+            ("person holding kitten", "I immediately picked him up and kept him warm."),
+            ("feeding baby kitten milk", "He was starving and drank his milk right away."),
+            ("cute happy sleeping kitten", "Now he is safe, healthy, and full of love ❤️")
         ]
     },
     {
-        "title": "A helpless golden puppy left behind in the heavy rain 🐶💔 #shorts",
-        "caption": "He was soaked and crying... Look at his happy ending! 🥺❤️ #dog #puppy #rescue #emotional #shorts #viral",
-        "scenes": [
-            {
-                "prompt": "POV authentic candid mobile photo, human hand reaching down to a tiny shivering wet golden retriever puppy trapped in a cold alley puddle, crying teary eyes, extremely realistic wet fur, raw real life photography",
-                "text": "I found this poor puppy crying in the cold rain..."
-            },
-            {
-                "prompt": "POV first person smartphone photo, human arms holding a soaking wet puppy wrapped inside a thick towel inside a warm car, realistic relief, real candid shot",
-                "text": "I immediately wrapped him up to keep him warm."
-            },
-            {
-                "prompt": "POV candid home photo, tiny clean golden puppy eating warm food from a small bowl on the kitchen floor, wagging tail, realistic natural indoor lighting",
-                "text": "After a warm bath, he had his first good meal."
-            },
-            {
-                "prompt": "POV phone snapshot, fluffy cute golden puppy happily sleeping on the sofa next to a human hand, peaceful smiling face, warm sunlight, authentic real photo",
-                "text": "He finally found his forever home ❤️"
-            }
+        "title": "Helpless puppy left behind finds a loving family 🐶❤️ #shorts",
+        "caption": "Nobody stopped for him until today 😭❤️ Look at that happy smile! #puppy #dog #dogrescue #wholesome #shorts #viral",
+        "queries": [
+            ("sad lonely puppy street", "This little puppy was abandoned on the sidewalk..."),
+            ("human hands holding puppy", "I couldn't just walk away and leave him there."),
+            ("puppy eating food bowl", "We gave him a warm bath and a good meal."),
+            ("happy golden puppy playing", "He finally found his forever home and family ❤️")
+        ]
+    },
+    {
+        "title": "Rescuing an injured baby animal in the woods 🐻🌲 #shorts",
+        "caption": "Every life deserves a helping hand 🥺❤️ #wildlife #rescue #nature #animalrescue #shorts #viral",
+        "queries": [
+            ("baby animal forest woods", "We spotted this tiny baby animal lost in the woods..."),
+            ("caring hands wild animal", "Carefully making sure it wasn't hurt."),
+            ("wildlife rehab animal care", "Giving him the shelter and care he needed."),
+            ("happy cute baby animal nature", "Now healthy, protected, and thriving in peace ❤️")
         ]
     }
 ]
 
 def add_top_subtitle(image_path, text):
-    """إضافة شريط النص التوضيحي أعلى الصورة تماماً مثل قنوات Shorts الاحترافية"""
+    """إضافة شريط النص التوضيحي أعلى الصورة تماماً كالفيديوهات الاحترافية"""
     img = PIL.Image.open(image_path).convert("RGBA")
     w, h = img.size
     
-    # إنشاء طبقة شفافة للنص
     overlay = PIL.Image.new("RGBA", img.size, (0, 0, 0, 0))
     draw = PIL.ImageDraw.Draw(overlay)
     
-    # شريط داكن شبه شفاف في الجزء العلوي
     banner_top = int(h * 0.08)
     banner_bottom = int(h * 0.16)
-    draw.rectangle([0, banner_top, w, banner_bottom], fill=(0, 0, 0, 160))
+    draw.rectangle([0, banner_top, w, banner_bottom], fill=(0, 0, 0, 180))
     
-    # اختيار حجم الخط
     font_size = int(w * 0.045)
     try:
         font = PIL.ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", font_size)
     except Exception:
         font = PIL.ImageFont.load_default()
         
-    # توسيط النص
     bbox = draw.textbbox((0, 0), text, font=font)
     text_w = bbox[2] - bbox[0]
     text_h = bbox[3] - bbox[1]
     text_x = (w - text_w) // 2
     text_y = banner_top + (banner_bottom - banner_top - text_h) // 2
     
-    # رسم النص باللون الأبيض
     draw.text((text_x, text_y), text, font=font, fill=(255, 255, 255, 255))
-    
-    # دمج وحفظ الصورة كـ RGB
     final_img = PIL.Image.alpha_composite(img, overlay).convert("RGB")
     final_img.save(image_path, "JPEG", quality=95)
 
-def download_image(prompt, filename):
-    # تعزيز الوصف لمنع أي مظهر كرتوني أو 3D أو AI art
-    real_prompt = (
-        f"{prompt}, raw photo, candid smartphone camera, 35mm lens, natural imperfect daylight, "
-        "grain, real life, hyperrealistic, no 3d render, no anime, no cartoon, no digital art"
-    )
-    encoded = urllib.parse.quote(real_prompt)
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+def download_pexels_image(query, filename):
+    print(f"Searching Pexels for real photo: '{query}'...")
+    url = f"https://api.pexels.com/v1/search?query={query}&orientation=portrait&per_page=15"
+    headers = {"Authorization": PEXELS_KEY}
+    
+    res = requests.get(url, headers=headers, timeout=30)
+    data = res.json()
+    
+    photos = data.get("photos", [])
+    if not photos:
+        # بحث بديل عام في حال لم توجد نتائج محددة
+        url = f"https://api.pexels.com/v1/search?query=cute animal&orientation=portrait&per_page=15"
+        res = requests.get(url, headers=headers, timeout=30)
+        photos = res.json().get("photos", [])
 
-    # استخدام سيرفر التوليد الواقعي مع seed عشوائي
-    for attempt in range(4):
-        seed = random.randint(100000, 9999999)
-        url = f"https://image.pollinations.ai/prompt/{encoded}?width=720&height=1280&model=flux-realism&nologo=true&seed={seed}"
-        
-        try:
-            print(f"Requesting realistic scene (attempt {attempt+1})...")
-            res = requests.get(url, headers=headers, timeout=60)
-            if res.status_code == 200 and len(res.content) > 15000:
-                with open(filename, "wb") as f:
-                    f.write(res.content)
-                return
-            # fallback لموديل flux الأساسي إذا كان realism مشغولاً
-            elif res.status_code != 200:
-                alt_url = f"https://image.pollinations.ai/prompt/{encoded}?width=720&height=1280&model=flux&nologo=true&seed={seed}"
-                alt_res = requests.get(alt_url, headers=headers, timeout=60)
-                if alt_res.status_code == 200 and len(alt_res.content) > 15000:
-                    with open(filename, "wb") as f:
-                        f.write(alt_res.content)
-                    return
-        except Exception as e:
-            print(f"Error downloading: {e}")
-        time.sleep(3)
-        
-    raise Exception("Failed to generate image")
+    photo = random.choice(photos)
+    # جلب الصورة بأعلى دقة عمودية portrait
+    img_url = photo["src"].get("portrait") or photo["src"].get("large2x")
+    
+    img_data = requests.get(img_url, timeout=60).content
+    with open(filename, "wb") as f:
+        f.write(img_data)
+    print(f"Successfully downloaded high-res photo from Pexels.")
 
-def create_video(scenes):
+def create_video(story_items):
     clips = []
-    for i, item in enumerate(scenes):
+    for i, (search_query, subtitle) in enumerate(story_items):
         img_name = f"scene_{i}.jpg"
-        print(f"Generating scene {i+1}...")
-        download_image(item["prompt"], img_name)
+        download_pexels_image(search_query, img_name)
         
-        # إضافة النص التوضيحي أعلى المشهد
-        add_top_subtitle(img_name, item["text"])
+        # إضافة شريط السرد في الأعلى
+        add_top_subtitle(img_name, subtitle)
         
         clip = ImageClip(img_name)
         clip = clip.with_duration(3.5) if hasattr(clip, "with_duration") else clip.set_duration(3.5)
-        # حركة زوم بطيئة جداً لإعطاء إيحاء الفيديو
+        # حركة سينمائية هادئة
         clip = clip.resize(lambda t: 1 + 0.02 * t)
         clips.append(clip)
         
-    print("Stitching video...")
+    print("Combining real 4K scenes into final video...")
     final_clip = concatenate_videoclips(clips, method="compose")
     output_path = "shorts_video.mp4"
     final_clip.write_videofile(output_path, fps=30, codec="libx264", preset="fast")
@@ -240,7 +206,7 @@ def post_to_buffer_graphql(title, caption, video_url):
 if __name__ == "__main__":
     story = random.choice(STORIES)
     print(f"Producing: {story['title']}")
-    video_file = create_video(story["scenes"])
+    video_file = create_video(story["queries"])
     public_url = upload_video_to_github_release(video_file)
-    print(f"Public URL: {public_url}")
+    print(f"Direct CDN URL: {public_url}")
     post_to_buffer_graphql(story["title"], story["caption"], public_url)
