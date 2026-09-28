@@ -9,6 +9,8 @@ except (ImportError, ModuleNotFoundError):
 
 BUFFER_TOKEN = os.getenv("BUFFER_ACCESS_TOKEN", "").strip()
 PROFILE_IDS = [pid.strip() for pid in os.getenv("BUFFER_PROFILE_IDS", "").split(",") if pid.strip()]
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "").strip()
+GITHUB_REPO = os.getenv("GITHUB_REPOSITORY", "").strip()
 
 def download_image(prompt, filename):
     encoded_prompt = urllib.parse.quote(prompt)
@@ -44,20 +46,24 @@ def create_video():
     final_clip.write_videofile(output_path, fps=24, codec="libx264")
     return output_path
 
-def upload_to_direct_host(video_path):
-    print("Uploading video to get a reliable direct CDN link...")
-    # الرفع عبر litterbox للحصول على رابط MP4 خام ومباشر
-    data = {
-        "reqtype": "fileupload",
-        "time": "12h"
+def upload_to_reliable_cdn(video_path):
+    print("Uploading video via direct raw storage...")
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
     }
     with open(video_path, "rb") as f:
-        res = requests.post("https://litterbox.catbox.moe/resources/internals/api.php", data=data, files={"fileToUpload": f})
+        # استخدام خادم oshi.at المفتوح والمباشر بدون أي صفحة وسيطة
+        res = requests.put("https://oshi.at/shorts_video.mp4", data=f, headers=headers, timeout=120)
     
-    direct_url = res.text.strip()
-    if not direct_url.startswith("http"):
-        raise Exception(f"Upload failed: {res.text}")
-    return direct_url
+    # استخراج الرابط المباشر
+    for line in res.text.splitlines():
+        if "DL:" in line:
+            return line.replace("DL:", "").strip()
+    
+    # حل بديل مباشر عبر File.io
+    with open(video_path, "rb") as f:
+        fallback = requests.post("https://file.io", files={"file": f}, timeout=120)
+        return fallback.json()["link"]
 
 def post_to_buffer_graphql(title, caption, video_url):
     endpoint = "https://api.buffer.com"
@@ -116,7 +122,7 @@ if __name__ == "__main__":
     video_file = create_video()
     
     print("Uploading video...")
-    public_url = upload_to_direct_host(video_file)
+    public_url = upload_to_reliable_cdn(video_file)
     print(f"Direct CDN URL: {public_url}")
     
     print("Posting to YouTube via Buffer GraphQL...")
